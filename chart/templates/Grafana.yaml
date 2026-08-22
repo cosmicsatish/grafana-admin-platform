@@ -1,0 +1,14 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: {{ .Values.grafana.name | default "grafana" }}
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+spec:
+  external:
+    url: {{ .Values.grafana.url | quote }}
+    apiKey:
+      name: {{ .Values.grafana.secretName | quote }}
+      key: {{ .Values.grafana.secretKey | default "token" | quote }}
+{{- end }}

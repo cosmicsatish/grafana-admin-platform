@@ -1,0 +1,16 @@
+# ==============================================================================
+# GRAFANA ADMIN PLATFORM - GLOBAL CONFIGURATION
+# ==============================================================================
+# Domain resources are defined in modular files under chart/values/:
+#   - chart/values/Team.yaml
+#   - chart/values/GrafanaFolder.yaml
+#   - chart/values/TeamLBACRule.yaml
+#   - chart/values/GrafanaServiceAccount.yaml
+#   - chart/values/ResourcePermission.yaml
+
+grafana:
+  enabled: true
+  name: grafana
+  url: "https://cosmicsatish.grafana.net"
+  secretName: "grafana-admin-token"
+  secretKey: "token"

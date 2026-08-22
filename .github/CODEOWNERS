@@ -1,0 +1,4 @@
+# Replace these with your organization/team handles.
+* @your-org/platform-team
+/resources/service-accounts/ @your-org/platform-team @your-org/security-team
+/policies/ @your-org/platform-team @your-org/security-team

@@ -1,0 +1,87 @@
+name: Validate Grafana Admin Platform
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate YAML syntax
+        run: |
+          python - <<'PY'
+          import pathlib, sys, yaml
+          failures = []
+          for p in pathlib.Path('.').rglob('*.yaml'):
+              if '.git' in p.parts or 'templates' in p.parts:
+                  continue
+              try:
+                  list(yaml.safe_load_all(p.read_text()))
+              except Exception as e:
+                  failures.append((str(p), str(e)))
+          if failures:
+              for p, e in failures:
+                  print(f'{p}: {e}', file=sys.stderr)
+              raise SystemExit(1)
+          print('YAML syntax OK')
+          PY
+
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject credential-like literals
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RniE '(password:|token:|client_secret:|private_key:)' --include='*.yaml' . --exclude-dir=.github --exclude='*.md' \
+            | grep -vE '(secretName:|secretKeyRef:|key: token$|tokens:|password.*Secret|token.*Secret|README)'; then
+            echo 'Potential credential literal found.' >&2
+            exit 1
+          fi
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint and template grafana-admin-platform chart
+        run: |
+          helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
+          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml >/tmp/chart-rendered.yaml
+          test -s /tmp/chart-rendered.yaml
+      - name: Helm template official Grafana Operator
+        run: |
+          helm template grafana-operator \
+            oci://ghcr.io/grafana/helm-charts/grafana-operator \
+            --version 5.24.0 \
+            --namespace grafana-operator \
+            --values deploy/operator-values.yaml >/tmp/operator-rendered.yaml
+          test -s /tmp/operator-rendered.yaml
+
+  cluster-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1.10.0
+      - name: Install official Grafana Operator CRDs/controller
+        run: |
+          kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install grafana-operator \
+            oci://ghcr.io/grafana/helm-charts/grafana-operator \
+            --version 5.24.0 \
+            --namespace grafana-operator \
+            --values deploy/operator-values.yaml
+          kubectl wait --for=condition=Established crd/grafanas.grafana.integreatly.org --timeout=120s
+      - name: Server-side validate desired Grafana resources
+        run: |
+          kubectl create namespace grafana-admin --dry-run=client -o yaml | kubectl apply -f -
+          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml | kubectl apply --dry-run=server -n grafana-admin -f -

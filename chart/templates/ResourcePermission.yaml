@@ -1,0 +1,37 @@
+{{- range .Values.datasourcePermissions }}
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaManifest
+metadata:
+  name: {{ .name }}
+  labels:
+    grafana-admin-platform: managed
+    owner: {{ .owner | default "platform" }}
+spec:
+  instanceSelector:
+    matchLabels:
+      grafana-admin-platform: managed
+  template:
+    apiVersion: iam.grafana.app/v0alpha1
+    kind: ResourcePermission
+    metadata:
+      name: {{ .manifestName }}
+    spec:
+      target:
+        kind: DataSource
+        name: {{ .datasource }}
+      assignments:
+        {{- range .assignments }}
+        {{- if .team }}
+        - target:
+            kind: Team
+            name: {{ .team }}
+          permission: {{ .permission }}
+        {{- else if .serviceAccount }}
+        - target:
+            kind: ServiceAccount
+            name: {{ .serviceAccount }}
+          permission: {{ .permission }}
+        {{- end }}
+        {{- end }}
+{{- end }}

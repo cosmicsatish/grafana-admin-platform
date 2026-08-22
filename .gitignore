@@ -1,0 +1,5 @@
+.env
+*.secret.yaml
+*.secret.yml
+*.token
+.DS_Store

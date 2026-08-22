@@ -1,0 +1,369 @@
+folders:
+  - title: "Teams"
+    uid: "teams"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+
+  - title: "SRE"
+    uid: "folder-sre"
+    owner: "sre"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "sre"
+        permission: 2
+
+  - title: "DBS Leads"
+    uid: "folder-dbs-leads"
+    owner: "dbs"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "dbs-leads"
+        permission: 2
+
+  - title: "DBS Contributors"
+    uid: "folder-dbs-contributors"
+    owner: "dbs"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "dbs-contributors"
+        permission: 2
+
+  - title: "ElasticSearch"
+    uid: "folder-elasticsearch"
+    owner: "dbs"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "dbs-leads"
+        permission: 2
+
+  - title: "TOC"
+    uid: "folder-toc"
+    owner: "toc"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "toc"
+        permission: 2
+
+  - title: "Admins"
+    uid: "folder-admins"
+    owner: "platform"
+    permissions:
+      - role: "Admin"
+        permission: 4
+      - team: "admins"
+        permission: 4
+
+  - title: "All viewers"
+    uid: "folder-all-viewers"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "all-viewers"
+        permission: 1
+
+  - title: "Application Support"
+    uid: "folder-application-support"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "application-support"
+        permission: 2
+
+  - title: "Cyber Security Team"
+    uid: "folder-cyber-security-team"
+    owner: "security"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "cyber-security-team"
+        permission: 2
+
+  - title: "Dashboarding and Alerting"
+    uid: "folder-dashboarding-and-alerting"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "dashboarding-and-alerting"
+        permission: 2
+
+  - title: "Create Reports"
+    uid: "folder-create-reports"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "create-reports"
+        permission: 2
+
+  - title: "database readonly"
+    uid: "folder-database-readonly"
+    owner: "dba"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "database-readonly"
+        permission: 1
+
+  - title: "Editors"
+    uid: "folder-editors"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - role: "Editor"
+        permission: 2
+      - team: "editors"
+        permission: 2
+
+  - title: "euc"
+    uid: "folder-euc"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "euc"
+        permission: 2
+
+  - title: "fortimail"
+    uid: "folder-fortimail"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "fortimail"
+        permission: 2
+
+  - title: "GrafanaAdmin"
+    uid: "folder-grafanaadmin"
+    owner: "platform"
+    permissions:
+      - role: "Admin"
+        permission: 4
+      - team: "grafanaadmin"
+        permission: 4
+
+  - title: "group admins"
+    uid: "folder-group-admins"
+    owner: "platform"
+    permissions:
+      - role: "Admin"
+        permission: 4
+      - team: "group-admins"
+        permission: 4
+
+  - title: "InfoSec"
+    uid: "folder-infosec"
+    owner: "security"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "infosec"
+        permission: 2
+
+  - title: "jigsaw-monitoring"
+    uid: "folder-jigsaw-monitoring"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "jigsaw-monitoring"
+        permission: 2
+
+  - title: "Network"
+    uid: "folder-network"
+    owner: "network"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "network"
+        permission: 2
+
+  - title: "NFT Team"
+    uid: "folder-nft-team"
+    owner: "nft"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "nft-team"
+        permission: 2
+
+  - title: "operation-automation"
+    uid: "folder-operation-automation"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "operation-automation"
+        permission: 2
+
+  - title: "optapi"
+    uid: "folder-optapi"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "optapi"
+        permission: 2
+
+  - title: "pengraven"
+    uid: "folder-pengraven"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "pengraven"
+        permission: 2
+
+  - title: "Private Cloud"
+    uid: "folder-private-cloud"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "private-cloud"
+        permission: 2
+
+  - title: "Product Management"
+    uid: "folder-product-management"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "product-management"
+        permission: 2
+
+  - title: "Reset"
+    uid: "folder-reset"
+    owner: "reset"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "reset"
+        permission: 2
+
+  - title: "sys admins linux"
+    uid: "folder-sys-admins-linux"
+    owner: "sysadmin"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "sys-admins-linux"
+        permission: 2
+
+  - title: "sys admins storage"
+    uid: "folder-sys-admins-storage"
+    owner: "sysadmin"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "sys-admins-storage"
+        permission: 2
+
+  - title: "sys admins windows"
+    uid: "folder-sys-admins-windows"
+    owner: "sysadmin"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "sys-admins-windows"
+        permission: 2
+
+  - title: "traiana-connectivity-dev"
+    uid: "folder-traiana-connectivity-dev"
+    owner: "traiana"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "traiana-connectivity-dev"
+        permission: 2
+
+  - title: "traiana-credit-dev"
+    uid: "folder-traiana-credit-dev"
+    owner: "traiana"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "traiana-credit-dev"
+        permission: 2
+
+  - title: "Traiana CSM"
+    uid: "folder-traiana-csm"
+    owner: "traiana"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "traiana-csm"
+        permission: 2
+
+  - title: "traiana-fx-dev"
+    uid: "folder-traiana-fx-dev"
+    owner: "traiana"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "traiana-fx-dev"
+        permission: 2
+
+  - title: "triBalance"
+    uid: "folder-tribalance"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "tribalance"
+        permission: 2
+
+  - title: "triCalculate"
+    uid: "folder-tricalculate"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "tricalculate"
+        permission: 2
+
+  - title: "triQA"
+    uid: "folder-triqa"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "triqa"
+        permission: 2
+
+  - title: "triReduce"
+    uid: "folder-trireduce"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "trireduce"
+        permission: 2
+
+  - title: "triResolve-core"
+    uid: "folder-triresolve-core"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "triresolve-core"
+        permission: 2
+
+  - title: "triResolve-margin"
+    uid: "folder-triresolve-margin"
+    owner: "trioptima"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "triresolve-margin"
+        permission: 2

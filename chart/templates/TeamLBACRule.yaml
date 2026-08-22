@@ -1,0 +1,23 @@
+{{- range .Values.lbacRules }}
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaManifest
+metadata:
+  name: {{ .name }}
+  labels:
+    grafana-admin-platform: managed
+    owner: {{ .owner | default "platform" }}
+spec:
+  instanceSelector:
+    matchLabels:
+      grafana-admin-platform: managed
+  template:
+    apiVersion: iam.grafana.app/v0alpha1
+    kind: TeamLBACRule
+    metadata:
+      name: {{ .name }}-loki-lbac
+    spec:
+      team: {{ .team }}
+      datasource: {{ .datasource | default "loki-lbac" }}
+      selector: {{ .selector | quote }}
+{{- end }}

@@ -1,0 +1,33 @@
+{{- range .Values.folders }}
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaFolder
+metadata:
+  name: {{ .title | lower | replace " " "-" }}-folder
+  labels:
+    grafana-admin-platform: managed
+    owner: {{ .owner | default "platform" }}
+spec:
+  instanceSelector:
+    matchLabels:
+      grafana-admin-platform: managed
+  uid: {{ .uid | quote }}
+  title: {{ .title | quote }}
+  {{- if .permissions }}
+  permissions: |
+    {
+      "items": [
+        {{- $length := len .permissions -}}
+        {{- range $i, $perm := .permissions }}
+        {{- if $perm.role }}
+        { "role": {{ $perm.role | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
+        {{- else if $perm.team }}
+        { "team": {{ $perm.team | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
+        {{- else if $perm.userLogin }}
+        { "userLogin": {{ $perm.userLogin | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
+        {{- end }}
+        {{- end }}
+      ]
+    }
+  {{- end }}
+{{- end }}
