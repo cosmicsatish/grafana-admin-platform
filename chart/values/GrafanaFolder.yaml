@@ -1,6 +1,22 @@
+# ==============================================================================
+# GRAFANA FOLDERS VALUES
+# ==============================================================================
+# All child folders are placed under the root parent folder "osttra".
+# Permissions: 1 = View, 2 = Edit, 4 = Admin (Owner)
+
 folders:
+  - title: "Osttra"
+    uid: "osttra"
+    owner: "platform"
+    permissions:
+      - role: "Viewer"
+        permission: 1
+      - team: "admins"
+        permission: 4
+
   - title: "Teams"
     uid: "teams"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
@@ -8,51 +24,59 @@ folders:
 
   - title: "SRE"
     uid: "folder-sre"
+    parentUid: "osttra"
     owner: "sre"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "sre"
-        permission: 2
+        permission: 4
 
   - title: "DBS Leads"
     uid: "folder-dbs-leads"
+    parentUid: "osttra"
     owner: "dbs"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "dbs-leads"
-        permission: 2
+        permission: 4
 
   - title: "DBS Contributors"
     uid: "folder-dbs-contributors"
+    parentUid: "osttra"
     owner: "dbs"
     permissions:
       - role: "Viewer"
         permission: 1
+      - team: "dbs-leads"
+        permission: 4
       - team: "dbs-contributors"
         permission: 2
 
   - title: "ElasticSearch"
     uid: "folder-elasticsearch"
+    parentUid: "osttra"
     owner: "dbs"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "dbs-leads"
-        permission: 2
+        permission: 4
 
   - title: "TOC"
     uid: "folder-toc"
+    parentUid: "osttra"
     owner: "toc"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "toc"
-        permission: 2
+        permission: 4
 
   - title: "Admins"
     uid: "folder-admins"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Admin"
@@ -62,6 +86,7 @@ folders:
 
   - title: "All viewers"
     uid: "folder-all-viewers"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
@@ -71,80 +96,91 @@ folders:
 
   - title: "Application Support"
     uid: "folder-application-support"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "support"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "application-support"
-        permission: 2
+        permission: 4
 
   - title: "Cyber Security Team"
     uid: "folder-cyber-security-team"
+    parentUid: "osttra"
     owner: "security"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "cyber-security-team"
-        permission: 2
+        permission: 4
 
   - title: "Dashboarding and Alerting"
     uid: "folder-dashboarding-and-alerting"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "dashboarding-and-alerting"
-        permission: 2
+        permission: 4
 
   - title: "Create Reports"
     uid: "folder-create-reports"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "create-reports"
-        permission: 2
+        permission: 4
 
   - title: "database readonly"
     uid: "folder-database-readonly"
-    owner: "dba"
+    parentUid: "osttra"
+    owner: "dbs"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "database-readonly"
-        permission: 1
+        permission: 2
+      - team: "dbs-leads"
+        permission: 4
 
   - title: "Editors"
     uid: "folder-editors"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
         permission: 1
-      - role: "Editor"
-        permission: 2
       - team: "editors"
         permission: 2
+      - team: "admins"
+        permission: 4
 
   - title: "euc"
     uid: "folder-euc"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "euc"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "euc"
-        permission: 2
+        permission: 4
 
   - title: "fortimail"
     uid: "folder-fortimail"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "security"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "fortimail"
-        permission: 2
+        permission: 4
 
   - title: "GrafanaAdmin"
     uid: "folder-grafanaadmin"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Admin"
@@ -154,6 +190,7 @@ folders:
 
   - title: "group admins"
     uid: "folder-group-admins"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Admin"
@@ -163,207 +200,230 @@ folders:
 
   - title: "InfoSec"
     uid: "folder-infosec"
+    parentUid: "osttra"
     owner: "security"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "infosec"
-        permission: 2
+        permission: 4
 
   - title: "jigsaw-monitoring"
     uid: "folder-jigsaw-monitoring"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "jigsaw"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "jigsaw-monitoring"
-        permission: 2
+        permission: 4
 
   - title: "Network"
     uid: "folder-network"
+    parentUid: "osttra"
     owner: "network"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "network"
-        permission: 2
+        permission: 4
 
   - title: "NFT Team"
     uid: "folder-nft-team"
+    parentUid: "osttra"
     owner: "nft"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "nft-team"
-        permission: 2
+        permission: 4
 
   - title: "operation-automation"
     uid: "folder-operation-automation"
+    parentUid: "osttra"
     owner: "platform"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "operation-automation"
-        permission: 2
+        permission: 4
 
   - title: "optapi"
     uid: "folder-optapi"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "optapi"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "optapi"
-        permission: 2
+        permission: 4
 
   - title: "pengraven"
     uid: "folder-pengraven"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "pengraven"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "pengraven"
-        permission: 2
+        permission: 4
 
   - title: "Private Cloud"
     uid: "folder-private-cloud"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "infrastructure"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "private-cloud"
-        permission: 2
+        permission: 4
 
   - title: "Product Management"
     uid: "folder-product-management"
-    owner: "platform"
+    parentUid: "osttra"
+    owner: "product"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "product-management"
-        permission: 2
+        permission: 4
 
   - title: "Reset"
     uid: "folder-reset"
+    parentUid: "osttra"
     owner: "reset"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "reset"
-        permission: 2
+        permission: 4
 
   - title: "sys admins linux"
     uid: "folder-sys-admins-linux"
-    owner: "sysadmin"
+    parentUid: "osttra"
+    owner: "infrastructure"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "sys-admins-linux"
-        permission: 2
+        permission: 4
 
   - title: "sys admins storage"
     uid: "folder-sys-admins-storage"
-    owner: "sysadmin"
+    parentUid: "osttra"
+    owner: "infrastructure"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "sys-admins-storage"
-        permission: 2
+        permission: 4
 
   - title: "sys admins windows"
     uid: "folder-sys-admins-windows"
-    owner: "sysadmin"
+    parentUid: "osttra"
+    owner: "infrastructure"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "sys-admins-windows"
-        permission: 2
+        permission: 4
 
   - title: "traiana-connectivity-dev"
     uid: "folder-traiana-connectivity-dev"
+    parentUid: "osttra"
     owner: "traiana"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "traiana-connectivity-dev"
-        permission: 2
+        permission: 4
 
   - title: "traiana-credit-dev"
     uid: "folder-traiana-credit-dev"
+    parentUid: "osttra"
     owner: "traiana"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "traiana-credit-dev"
-        permission: 2
+        permission: 4
 
   - title: "Traiana CSM"
     uid: "folder-traiana-csm"
+    parentUid: "osttra"
     owner: "traiana"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "traiana-csm"
-        permission: 2
+        permission: 4
 
   - title: "traiana-fx-dev"
     uid: "folder-traiana-fx-dev"
+    parentUid: "osttra"
     owner: "traiana"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "traiana-fx-dev"
-        permission: 2
+        permission: 4
 
   - title: "triBalance"
     uid: "folder-tribalance"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "tribalance"
-        permission: 2
+        permission: 4
 
   - title: "triCalculate"
     uid: "folder-tricalculate"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "tricalculate"
-        permission: 2
+        permission: 4
 
   - title: "triQA"
     uid: "folder-triqa"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "triqa"
-        permission: 2
+        permission: 4
 
   - title: "triReduce"
     uid: "folder-trireduce"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "trireduce"
-        permission: 2
+        permission: 4
 
   - title: "triResolve-core"
     uid: "folder-triresolve-core"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "triresolve-core"
-        permission: 2
+        permission: 4
 
   - title: "triResolve-margin"
     uid: "folder-triresolve-margin"
-    owner: "trioptima"
+    parentUid: "osttra"
+    owner: "tri"
     permissions:
       - role: "Viewer"
         permission: 1
       - team: "triresolve-margin"
-        permission: 2
+        permission: 4

@@ -1,0 +1,242 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-admin-values
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+data:
+  values.json: |
+    {{ toJson .Values }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-admin-reconciler-script
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+data:
+  reconcile.py: |
+    import urllib.request, json, ssl, os, sys
+
+    TOKEN = os.environ.get("GRAFANA_TOKEN", "")
+    BASE_URL = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net").rstrip("/")
+    VALUES_PATH = os.environ.get("VALUES_PATH", "/config/values.json")
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    def api_call(endpoint, method="GET", data=None):
+        url = f"{BASE_URL}{endpoint}"
+        req = urllib.request.Request(url, method=method)
+        req.add_header("Authorization", f"Bearer {TOKEN}")
+        req.add_header("Content-Type", "application/json")
+        if data is not None:
+            req.data = json.dumps(data).encode("utf-8")
+        try:
+            with urllib.request.urlopen(req, context=ctx) as resp:
+                body = resp.read().decode("utf-8")
+                return resp.status, json.loads(body) if body else {}
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8")
+            try:
+                return e.code, json.loads(body)
+            except:
+                return e.code, {"error": body}
+
+    print("=== Loading values configuration ===")
+    with open(VALUES_PATH) as f:
+        cfg = json.load(f)
+
+    teams_val = cfg.get("teams", [])
+    folders_val = cfg.get("folders", [])
+    sa_val = cfg.get("serviceAccounts", [])
+    perms_val = cfg.get("datasourcePermissions", [])
+
+    print("=== 1. Reconciling Osttra Root Parent Folder ===")
+    st, osttra_folder = api_call("/api/folders/osttra")
+    if st != 200:
+        st, osttra_folder = api_call("/api/folders", method="POST", data={"title": "Osttra", "uid": "osttra"})
+        print(f"Created Osttra root folder: {st}")
+    else:
+        print("Osttra root folder exists.")
+
+    print("=== 2. Fetching Access Control Roles & Teams ===")
+    st, roles_data = api_call("/api/access-control/roles")
+    name_to_role_uid = {r["name"]: r["uid"] for r in (roles_data if isinstance(roles_data, list) else [])}
+    print(f"Loaded {len(name_to_role_uid)} access-control roles.")
+
+    st, teams_search = api_call("/api/teams/search")
+    team_name_to_id = {t["name"]: t["id"] for t in teams_search.get("teams", [])}
+    team_slug_to_id = {}
+    for t in teams_search.get("teams", []):
+        team_slug_to_id[t["name"].lower().replace(" ", "-")] = t["id"]
+        team_slug_to_id[t["name"].lower()] = t["id"]
+
+    print(f"=== 3. Reconciling {len(teams_val)} Teams ===")
+    for t in teams_val:
+        t_name = t["name"]
+        t_id = team_name_to_id.get(t_name)
+        if not t_id:
+            st, res = api_call("/api/teams", method="POST", data={"name": t_name, "email": t.get("email", "")})
+            if st in (200, 201):
+                t_id = res.get("teamId")
+                team_name_to_id[t_name] = t_id
+                team_slug_to_id[t_name.lower().replace(" ", "-")] = t_id
+                team_slug_to_id[t_name.lower()] = t_id
+                print(f"Created Team: {t_name} (id: {t_id})")
+            else:
+                print(f"Failed to create team {t_name}: {st} {res}")
+        
+        if t_id:
+            if t.get("syncGroups"):
+                for grp in t["syncGroups"]:
+                    api_call(f"/api/teams/{t_id}/groups", method="POST", data={"groupId": grp})
+            
+            if t.get("roles"):
+                role_uids = [name_to_role_uid[r] for r in t["roles"] if r in name_to_role_uid]
+                if role_uids:
+                    api_call(f"/api/access-control/teams/{t_id}/roles", method="PUT", data={"global": False, "roleUids": role_uids})
+                    print(f"Assigned {len(role_uids)} roles to Team {t_name}")
+
+    print(f"=== 4. Reconciling {len(folders_val)} Folders under Osttra & Permissions ===")
+    for fld in folders_val:
+        f_uid = fld.get("uid")
+        if not f_uid or f_uid == "osttra":
+            continue
+        f_title = fld["title"]
+        st, f_info = api_call(f"/api/folders/{f_uid}")
+        if st == 200:
+            api_call(f"/api/folders/{f_uid}", method="PUT", data={"title": f_title, "parentUid": "osttra", "overwrite": True})
+        else:
+            api_call("/api/folders", method="POST", data={"title": f_title, "uid": f_uid, "parentUid": "osttra"})
+        
+        perm_items = []
+        for p in fld.get("permissions", []):
+            if "role" in p:
+                perm_items.append({"role": p["role"], "permission": p["permission"]})
+            elif "team" in p:
+                team_slug_or_name = p["team"]
+                tid = team_slug_to_id.get(team_slug_or_name.lower()) or team_slug_to_id.get(team_slug_or_name.lower().replace(" ", "-"))
+                if tid:
+                    perm_items.append({"teamId": tid, "permission": p["permission"]})
+        
+        if perm_items:
+            api_call(f"/api/folders/{f_uid}/permissions", method="POST", data={"items": perm_items})
+
+    print(f"=== 5. Reconciling Service Accounts & Fixed Roles ===")
+    st, sa_search = api_call("/api/serviceaccounts/search")
+    sa_name_to_id = {sa["name"]: sa["id"] for sa in sa_search.get("serviceAccounts", [])}
+    for sa in sa_val:
+        sa_name = sa["name"]
+        sa_id = sa_name_to_id.get(sa_name)
+        if not sa_id:
+            st, res = api_call("/api/serviceaccounts", method="POST", data={"name": sa_name, "role": sa.get("role", "Viewer")})
+            if st in (200, 201):
+                sa_id = res.get("id")
+                sa_name_to_id[sa_name] = sa_id
+        
+        if sa_id and sa.get("fixedRoles"):
+            role_uids = [name_to_role_uid[r] for r in sa["fixedRoles"] if r in name_to_role_uid]
+            if role_uids:
+                api_call(f"/api/access-control/users/{sa_id}/roles", method="PUT", data={"global": False, "roleUids": role_uids})
+                print(f"Assigned {len(role_uids)} fixed roles to Service Account {sa_name}")
+
+    print("=== 6. Reconciling Datasource Permissions ===")
+    st, datasources = api_call("/api/datasources")
+    ds_name_to_uid = {ds["name"]: ds["uid"] for ds in (datasources if isinstance(datasources, list) else [])}
+    for p_group in perms_val:
+        ds_name = p_group["datasource"]
+        ds_uid = ds_name_to_uid.get(ds_name)
+        if not ds_uid:
+            continue
+        
+        query_role_name = f"custom:datasource:{ds_name}:query"
+        admin_role_name = f"custom:datasource:{ds_name}:admin"
+        
+        if query_role_name not in name_to_role_uid:
+            st, res = api_call("/api/access-control/roles", method="POST", data={
+                "name": query_role_name,
+                "displayName": f"Datasource {ds_name} Query",
+                "permissions": [{"action": "datasources:query", "scope": f"datasources:uid:{ds_uid}"}]
+            })
+            if st in (200, 201):
+                name_to_role_uid[query_role_name] = res["uid"]
+        
+        if admin_role_name not in name_to_role_uid:
+            st, res = api_call("/api/access-control/roles", method="POST", data={
+                "name": admin_role_name,
+                "displayName": f"Datasource {ds_name} Admin",
+                "permissions": [
+                    {"action": "datasources:query", "scope": f"datasources:uid:{ds_uid}"},
+                    {"action": "datasources:read", "scope": f"datasources:uid:{ds_uid}"},
+                    {"action": "datasources:write", "scope": f"datasources:uid:{ds_uid}"},
+                    {"action": "datasources:delete", "scope": f"datasources:uid:{ds_uid}"},
+                    {"action": "datasources:admin", "scope": f"datasources:uid:{ds_uid}"}
+                ]
+            })
+            if st in (200, 201):
+                name_to_role_uid[admin_role_name] = res["uid"]
+
+        for asgn in p_group.get("assignments", []):
+            t_slug = asgn.get("team")
+            if t_slug:
+                tid = team_slug_to_id.get(t_slug.lower()) or team_slug_to_id.get(t_slug.lower().replace(" ", "-"))
+                if tid:
+                    role_to_add = admin_role_name if asgn["permission"] == "Admin" else query_role_name
+                    if role_to_add in name_to_role_uid:
+                        role_uid = name_to_role_uid[role_to_add]
+                        st, current_roles = api_call(f"/api/access-control/teams/{tid}/roles")
+                        current_uids = [r["uid"] for r in current_roles] if isinstance(current_roles, list) else []
+                        if role_uid not in current_uids:
+                            current_uids.append(role_uid)
+                            api_call(f"/api/access-control/teams/{tid}/roles", method="PUT", data={"global": False, "roleUids": current_uids})
+
+    print("=== Reconciliation Complete Successfully ===")
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-admin-reconciler-{{ randAlphaNum 5 | lower }}
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "grafana-admin-platform.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: reconciler
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/scripts/reconcile.py"]
+          env:
+            - name: GRAFANA_URL
+              value: {{ .Values.grafana.url | default "https://cosmicsatish.grafana.net" | quote }}
+            - name: GRAFANA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafana.secretName | default "grafana-admin-token" | quote }}
+                  key: {{ .Values.grafana.secretKey | default "token" | quote }}
+            - name: VALUES_PATH
+              value: "/config/values.json"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-admin-values
+        - name: scripts
+          configMap:
+            name: grafana-admin-reconciler-script
