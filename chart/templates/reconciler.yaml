@@ -199,7 +199,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: grafana-admin-reconciler-{{ randAlphaNum 5 | lower }}
+  name: grafana-admin-reconciler
   labels:
     {{- include "grafana-admin-platform.labels" . | nindent 4 }}
   annotations:
