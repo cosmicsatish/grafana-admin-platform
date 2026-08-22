@@ -1,3 +1,8 @@
+# ==============================================================================
+# DATASOURCE PERMISSIONS VALUES
+# ==============================================================================
+# Scoped access only for the loki-lbac datasource.
+
 datasourcePermissions:
   - name: datasource-permissions-loki-lbac
     manifestName: loki-lbac-access
@@ -80,48 +85,4 @@ datasourcePermissions:
       - team: triresolve-core
         permission: Query
       - team: triresolve-margin
-        permission: Query
-      - serviceAccount: platform-automation
-        permission: Query
-      - serviceAccount: sre-bot
-        permission: Admin
-
-  - name: datasource-permissions-prom
-    manifestName: prometheus-datasource-access
-    datasource: grafanacloud-cosmicsatish-prom
-    assignments:
-      - team: sre
-        permission: Query
-      - team: dbs-leads
-        permission: Query
-      - team: dbs-contributors
-        permission: Query
-      - team: toc
-        permission: Query
-      - team: admins
-        permission: Admin
-      - team: all-viewers
-        permission: Query
-      - team: dashboarding-and-alerting
-        permission: Query
-      - team: editors
-        permission: Query
-      - serviceAccount: platform-automation
-        permission: Query
-      - serviceAccount: sre-bot
-        permission: Admin
-
-  - name: datasource-permissions-infinity
-    manifestName: infinity-datasource-access
-    datasource: grafanacloud-infinity
-    assignments:
-      - team: sre
-        permission: Query
-      - team: admins
-        permission: Admin
-      - team: all-viewers
-        permission: Query
-      - team: editors
-        permission: Query
-      - serviceAccount: platform-automation
         permission: Query
