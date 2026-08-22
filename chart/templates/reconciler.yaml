@@ -106,11 +106,13 @@ data:
             continue
         f_title = fld["title"]
         st, f_info = api_call(f"/api/folders/{f_uid}")
-        if st == 200:
-            api_call(f"/api/folders/{f_uid}", method="PUT", data={"title": f_title, "parentUid": "osttra", "overwrite": True})
-        else:
+        if st != 200:
             api_call("/api/folders", method="POST", data={"title": f_title, "uid": f_uid, "parentUid": "osttra"})
         
+        # Ensure nested under Osttra parent
+        api_call(f"/api/folders/{f_uid}/move", method="POST", data={"parentUID": "osttra"})
+        
+        # Set permissions and team ownership
         perm_items = []
         for p in fld.get("permissions", []):
             if "role" in p:
