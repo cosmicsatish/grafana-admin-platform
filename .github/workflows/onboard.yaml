@@ -62,309 +62,153 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Install yq
+        run: |
+          sudo curl -sL https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
 
-      - name: Install PyYAML
-        run: pip install pyyaml
-
-      - name: Process Resource Mutation & Synchronize with Grafana Cloud
+      - name: Mutate Values Files
         env:
           ACTION: ${{ github.event.inputs.action }}
           CONFIRM_DELETE: ${{ github.event.inputs.confirm_delete }}
           TYPE: ${{ github.event.inputs.resource_type }}
           NAME: ${{ github.event.inputs.name }}
-          SLUG: ${{ github.event.inputs.slug }}
+          SLUG_INPUT: ${{ github.event.inputs.slug }}
           OWNER: ${{ github.event.inputs.owner }}
           ROLES: ${{ github.event.inputs.roles }}
           SYNC_GROUPS: ${{ github.event.inputs.sync_groups }}
           SELECTOR: ${{ github.event.inputs.selector }}
-          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
-          GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
-          python - <<'PY'
-          import os, sys, re, yaml, json, urllib.request, urllib.parse, ssl
+          set -euo pipefail
 
-          action = os.environ.get("ACTION", "add_or_update").strip().lower()
-          confirm_delete = os.environ.get("CONFIRM_DELETE", "").strip()
-          res_type = os.environ.get("TYPE", "").strip().lower()
-          name = os.environ.get("NAME", "").strip()
-          slug_raw = os.environ.get("SLUG", "").strip()
-          owner = os.environ.get("OWNER", "").strip()
-          roles_raw = os.environ.get("ROLES", "").strip()
-          sync_groups_raw = os.environ.get("SYNC_GROUPS", "").strip()
-          selector = os.environ.get("SELECTOR", "").strip()
-          grafana_token = os.environ.get("GRAFANA_API_KEY", "").strip()
-          grafana_url = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net").strip()
+          # Normalize slug to RFC 1123 format (lowercase alphanumeric and hyphens only)
+          if [ -n "$SLUG_INPUT" ]; then
+            SLUG=$(echo "$SLUG_INPUT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+          else
+            SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+          fi
 
-          if not name:
-              print("❌ Error: Resource Name/Title cannot be empty.", file=sys.stderr)
-              sys.exit(1)
+          if [ -z "$SLUG" ]; then
+            SLUG="resource-1"
+          fi
 
-          # Auto-derive and normalize slug to RFC 1123 format (lowercase alphanumeric and hyphens only)
-          if slug_raw:
-              slug = re.sub(r'[^a-z0-9-]', '-', slug_raw.lower()).strip('-')
-          else:
-              slug = re.sub(r'[^a-z0-9-]', '-', name.lower()).strip('-')
-
-          if not slug:
-              slug = "resource-" + re.sub(r'[^a-z0-9]', '', name.lower())
-
-          roles = [r.strip() for r in roles_raw.split(",") if r.strip()]
-          sync_groups = [s.strip() for s in sync_groups_raw.split(",") if s.strip()]
-
-          def load_yaml(path):
-              if not os.path.exists(path):
-                  return {}
-              with open(path, "r") as f:
-                  return yaml.safe_load(f) or {}
-
-          def save_yaml(path, data):
-              with open(path, "w") as f:
-                  yaml.dump(data, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
-
-          # Helper for Grafana Cloud REST calls
-          def grafana_api(path, data=None, method="GET"):
-              if not grafana_token:
-                  return None
-              ctx = ssl._create_unverified_context()
-              headers = {
-                  "Authorization": f"Bearer {grafana_token}",
-                  "Accept": "application/json",
-                  "Content-Type": "application/json"
-              }
-              url = f"{grafana_url}{path}"
-              body = json.dumps(data).encode() if data is not None else None
-              req = urllib.request.Request(url, data=body, headers=headers, method=method)
-              try:
-                  with urllib.request.urlopen(req, context=ctx) as r:
-                      return json.loads(r.read())
-              except Exception as e:
-                  print(f"ℹ️ Grafana Cloud API ({method} {path}): {e}")
-                  return None
+          export SLUG
+          export OWNER_TEAM="${OWNER:-platform}"
+          export TEAM_TARGET="${OWNER:-$SLUG}"
 
           # ==========================================
-          # REMOVE RESOURCE
+          # REMOVE ACTION
           # ==========================================
-          if action == "remove":
-              if confirm_delete != "DELETE":
-                  print("❌ Safety Check Failed: You must type 'DELETE' in confirm_delete to remove resources.", file=sys.stderr)
-                  sys.exit(1)
+          if [ "$ACTION" = "remove" ]; then
+            if [ "$CONFIRM_DELETE" != "DELETE" ]; then
+              echo "❌ Safety Check Failed: You must type 'DELETE' in confirm_delete to remove resources." >&2
+              exit 1
+            fi
 
-              print(f"🗑️ Safety check passed. Removing {res_type}: '{name}' (slug: {slug})")
+            echo "🗑️ Removing $TYPE: '$NAME' (slug: $SLUG)"
 
-              if res_type == "team":
-                  team_file = "chart/values/Team.yaml"
-                  t_data = load_yaml(team_file)
-                  t_data["teams"] = [
-                      t for t in t_data.get("teams", [])
-                      if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name", "").lower() != name.lower()
-                  ]
-                  save_yaml(team_file, t_data)
+            if [ "$TYPE" = "team" ]; then
+              yq -i 'del(.teams[] | select(.slug == strenv(SLUG) or .name == strenv(NAME)))' chart/values/Team.yaml
+              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == strenv(SLUG)))' chart/values/ResourcePermission.yaml
+              yq -i 'del(.lbacRules[] | select(.name == strenv(SLUG) or .team == strenv(SLUG)))' chart/values/TeamLBACRule.yaml
 
-                  # Delete from Grafana Cloud via REST API
-                  if grafana_token:
-                      teams_list = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
-                      for t in (teams_list.get("teams", []) if teams_list else []):
-                          if t.get("name", "").lower() == name.lower() or t.get("name", "").lower().replace(" ", "-") == slug:
-                              grafana_api(f"/api/teams/{t['id']}", method="DELETE")
-                              print(f"🗑️ Deleted team '{t['name']}' (ID: {t['id']}) from Grafana Cloud")
+            elif [ "$TYPE" = "folder" ]; then
+              yq -i 'del(.folders[] | select(.uid == strenv(SLUG) or .title == strenv(NAME)))' chart/values/GrafanaFolder.yaml
 
-                  perm_file = "chart/values/ResourcePermission.yaml"
-                  p_data = load_yaml(perm_file)
-                  if p_data.get("datasourcePermissions"):
-                      p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", [])
-                          if a.get("team") != slug and a.get("team") != slug_raw
-                      ]
-                      save_yaml(perm_file, p_data)
+            elif [ "$TYPE" = "service_account" ]; then
+              yq -i 'del(.serviceAccounts[] | select(.name == strenv(NAME)))' chart/values/GrafanaServiceAccount.yaml
 
-                  lbac_file = "chart/values/TeamLBACRule.yaml"
-                  l_data = load_yaml(lbac_file)
-                  l_data["lbacRules"] = [
-                      r for r in l_data.get("lbacRules", [])
-                      if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw
-                  ]
-                  save_yaml(lbac_file, l_data)
+            elif [ "$TYPE" = "lbac_rule" ]; then
+              yq -i 'del(.lbacRules[] | select(.name == strenv(SLUG) or .team == strenv(SLUG)))' chart/values/TeamLBACRule.yaml
+              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == strenv(SLUG)))' chart/values/ResourcePermission.yaml
+            fi
 
-              elif res_type == "folder":
-                  folder_file = "chart/values/GrafanaFolder.yaml"
-                  f_data = load_yaml(folder_file)
-                  f_data["folders"] = [
-                      f for f in f_data.get("folders", [])
-                      if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title", "").lower() != name.lower()
-                  ]
-                  save_yaml(folder_file, f_data)
-
-              elif res_type == "service_account":
-                  sa_file = "chart/values/GrafanaServiceAccount.yaml"
-                  s_data = load_yaml(sa_file)
-                  s_data["serviceAccounts"] = [
-                      s for s in s_data.get("serviceAccounts", [])
-                      if s.get("name", "").lower() != name.lower() and s.get("name", "").lower().replace(" ", "-") != slug
-                  ]
-                  save_yaml(sa_file, s_data)
-
-              elif res_type == "lbac_rule":
-                  lbac_file = "chart/values/TeamLBACRule.yaml"
-                  l_data = load_yaml(lbac_file)
-                  l_data["lbacRules"] = [
-                      r for r in l_data.get("lbacRules", [])
-                      if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw
-                  ]
-                  save_yaml(lbac_file, l_data)
-
-                  perm_file = "chart/values/ResourcePermission.yaml"
-                  p_data = load_yaml(perm_file)
-                  if p_data.get("datasourcePermissions"):
-                      p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", [])
-                          if a.get("team") != slug and a.get("team") != slug_raw
-                      ]
-                      save_yaml(perm_file, p_data)
-
-              print(f"✅ Successfully removed {res_type} '{name}'")
-              sys.exit(0)
+            echo "✅ Successfully removed $TYPE '$NAME' from values files"
+            exit 0
+          fi
 
           # ==========================================
-          # ADD OR UPDATE RESOURCE
+          # ADD OR UPDATE ACTION
           # ==========================================
-          if res_type == "team":
-              team_file = "chart/values/Team.yaml"
-              t_data = load_yaml(team_file)
-              teams = [
-                  t for t in t_data.get("teams", [])
-                  if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name", "").lower() != name.lower()
+          echo "📝 Processing add/update for $TYPE: '$NAME' (slug: $SLUG)"
+
+          if [ "$TYPE" = "team" ]; then
+            yq -i 'del(.teams[] | select(.slug == strenv(SLUG) or .name == strenv(NAME)))' chart/values/Team.yaml
+            yq -i '.teams += [{"name": strenv(NAME), "slug": strenv(SLUG)}]' chart/values/Team.yaml
+
+            if [ -n "$OWNER" ]; then
+              yq -i '(.teams[] | select(.slug == strenv(SLUG))).owner = strenv(OWNER)' chart/values/Team.yaml
+            fi
+            if [ -n "$ROLES" ]; then
+              yq -i '(.teams[] | select(.slug == strenv(SLUG))).roles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/Team.yaml
+            fi
+            if [ -n "$SYNC_GROUPS" ]; then
+              yq -i '(.teams[] | select(.slug == strenv(SLUG))).syncGroups = (strenv(SYNC_GROUPS) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/Team.yaml
+            fi
+
+            if [ -n "$SELECTOR" ]; then
+              yq -i 'del(.lbacRules[] | select(.name == strenv(SLUG)))' chart/values/TeamLBACRule.yaml
+              yq -i '.lbacRules += [{
+                "name": strenv(SLUG),
+                "team": strenv(SLUG),
+                "datasource": "grafanacloud-cosmicsatish-logs-lbac",
+                "selector": strenv(SELECTOR)
+              }]' chart/values/TeamLBACRule.yaml
+
+              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == strenv(SLUG)))' chart/values/ResourcePermission.yaml
+              yq -i '.datasourcePermissions[0].assignments += [{
+                "team": strenv(SLUG),
+                "permission": "Query"
+              }]' chart/values/ResourcePermission.yaml
+            fi
+
+          elif [ "$TYPE" = "folder" ]; then
+            yq -i 'del(.folders[] | select(.uid == strenv(SLUG) or .title == strenv(NAME)))' chart/values/GrafanaFolder.yaml
+            yq -i '.folders += [{
+              "title": strenv(NAME),
+              "uid": strenv(SLUG),
+              "parentUid": "osttra",
+              "owner": strenv(OWNER_TEAM),
+              "permissions": [
+                {"role": "Viewer", "permission": 1},
+                {"team": strenv(OWNER_TEAM), "permission": 4}
               ]
-              team_entry = {
-                  "name": name,
-                  "slug": slug,
-              }
-              if owner:
-                  team_entry["owner"] = owner
-              if sync_groups:
-                  team_entry["syncGroups"] = sync_groups
-              if roles:
-                  team_entry["roles"] = roles
-              teams.append(team_entry)
-              t_data["teams"] = teams
-              save_yaml(team_file, t_data)
+            }]' chart/values/GrafanaFolder.yaml
 
-              # Create or Update Team in Grafana Cloud via REST API
-              if grafana_token:
-                  search_res = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
-                  existing_teams = search_res.get("teams", []) if search_res else []
-                  matched = next((t for t in existing_teams if t.get("name", "").lower() == name.lower()), None)
-                  if not matched:
-                      create_res = grafana_api("/api/teams", data={"name": name}, method="POST")
-                      team_id = create_res.get("teamId") if create_res else None
-                      print(f"✅ Created team '{name}' in Grafana Cloud (ID: {team_id})")
-                  else:
-                      team_id = matched.get("id")
-                      print(f"ℹ️ Team '{name}' exists in Grafana Cloud (ID: {team_id})")
+          elif [ "$TYPE" = "service_account" ]; then
+            yq -i 'del(.serviceAccounts[] | select(.name == strenv(NAME)))' chart/values/GrafanaServiceAccount.yaml
+            yq -i '.serviceAccounts += [{
+              "name": strenv(NAME),
+              "role": "None",
+              "secretName": (strenv(SLUG) + "-token"),
+              "tokenName": (strenv(SLUG) + "-token"),
+              "tokenExpires": "2027-12-31T23:59:59Z"
+            }]' chart/values/GrafanaServiceAccount.yaml
 
-                  if team_id and roles:
-                      all_roles = grafana_api("/api/access-control/roles") or []
-                      role_uids = [r["uid"] for r in all_roles if r.get("name") in roles]
-                      if role_uids:
-                          grafana_api(f"/api/access-control/teams/{team_id}/roles", data={"roleUids": role_uids}, method="PUT")
-                          print(f"✅ Assigned RBAC roles {roles} to team '{name}'")
+            if [ -n "$OWNER" ]; then
+              yq -i '(.serviceAccounts[] | select(.name == strenv(NAME))).owner = strenv(OWNER)' chart/values/GrafanaServiceAccount.yaml
+            fi
+            if [ -n "$ROLES" ]; then
+              yq -i '(.serviceAccounts[] | select(.name == strenv(NAME))).fixedRoles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/GrafanaServiceAccount.yaml
+            fi
 
-                  if team_id and sync_groups:
-                      for sg in sync_groups:
-                          grafana_api(f"/api/teams/{team_id}/groups", data={"groupId": sg}, method="POST")
-                          print(f"✅ Synced Azure AD Group {sg} to team '{name}'")
+          elif [ "$TYPE" = "lbac_rule" ]; then
+            yq -i 'del(.lbacRules[] | select(.name == strenv(SLUG)))' chart/values/TeamLBACRule.yaml
+            yq -i '.lbacRules += [{
+              "name": strenv(SLUG),
+              "team": strenv(TEAM_TARGET),
+              "datasource": "grafanacloud-cosmicsatish-logs-lbac",
+              "selector": strenv(SELECTOR)
+            }]' chart/values/TeamLBACRule.yaml
 
-              if selector:
-                  lbac_file = "chart/values/TeamLBACRule.yaml"
-                  l_data = load_yaml(lbac_file)
-                  rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("name") != slug_raw]
-                  rules.append({
-                      "name": slug,
-                      "team": slug,
-                      "datasource": "grafanacloud-cosmicsatish-logs-lbac",
-                      "selector": selector
-                  })
-                  l_data["lbacRules"] = rules
-                  save_yaml(lbac_file, l_data)
+            yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == strenv(TEAM_TARGET)))' chart/values/ResourcePermission.yaml
+            yq -i '.datasourcePermissions[0].assignments += [{
+              "team": strenv(TEAM_TARGET),
+              "permission": "Query"
+            }]' chart/values/ResourcePermission.yaml
+          fi
 
-                  perm_file = "chart/values/ResourcePermission.yaml"
-                  p_data = load_yaml(perm_file)
-                  if p_data.get("datasourcePermissions"):
-                      assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw]
-                      assigns.append({"team": slug, "permission": "Query"})
-                      p_data["datasourcePermissions"][0]["assignments"] = assigns
-                      save_yaml(perm_file, p_data)
-
-          elif res_type == "folder":
-              owner_team = owner if owner else "platform"
-              folder_file = "chart/values/GrafanaFolder.yaml"
-              f_data = load_yaml(folder_file)
-              folders = [
-                  f for f in f_data.get("folders", [])
-                  if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title", "").lower() != name.lower()
-              ]
-              folders.append({
-                  "title": name,
-                  "uid": slug,
-                  "parentUid": "osttra",
-                  "owner": owner_team,
-                  "permissions": [
-                      {"role": "Viewer", "permission": 1},
-                      {"team": owner_team, "permission": 4}
-                  ]
-              })
-              f_data["folders"] = folders
-              save_yaml(folder_file, f_data)
-
-          elif res_type == "service_account":
-              sa_file = "chart/values/GrafanaServiceAccount.yaml"
-              s_data = load_yaml(sa_file)
-              sas = [
-                  s for s in s_data.get("serviceAccounts", [])
-                  if s.get("name", "").lower() != name.lower() and s.get("name", "").lower().replace(" ", "-") != slug
-              ]
-              sa_entry = {
-                  "name": name,
-                  "role": "None",
-                  "secretName": f"{slug}-token",
-                  "tokenName": f"{slug}-token",
-                  "tokenExpires": "2027-12-31T23:59:59Z"
-              }
-              if owner:
-                  sa_entry["owner"] = owner
-              if roles:
-                  sa_entry["fixedRoles"] = roles
-              sas.append(sa_entry)
-              s_data["serviceAccounts"] = sas
-              save_yaml(sa_file, s_data)
-
-          elif res_type == "lbac_rule":
-              target_team = owner if owner else slug
-              lbac_file = "chart/values/TeamLBACRule.yaml"
-              l_data = load_yaml(lbac_file)
-              rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("name") != slug_raw]
-              rules.append({
-                  "name": slug,
-                  "team": target_team,
-                  "datasource": "grafanacloud-cosmicsatish-logs-lbac",
-                  "selector": selector
-              })
-              l_data["lbacRules"] = rules
-              save_yaml(lbac_file, l_data)
-
-              perm_file = "chart/values/ResourcePermission.yaml"
-              p_data = load_yaml(perm_file)
-              if p_data.get("datasourcePermissions"):
-                  assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != target_team and a.get("team") != slug_raw]
-                  assigns.append({"team": target_team, "permission": "Query"})
-                  p_data["datasourcePermissions"][0]["assignments"] = assigns
-                  save_yaml(perm_file, p_data)
-
-          print(f"✅ Successfully processed {action} for {res_type} '{name}' ({slug})")
-          PY
+          echo "✅ Successfully updated values files for $TYPE '$NAME'"
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
