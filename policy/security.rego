@@ -42,3 +42,19 @@ deny[msg] {
     not regex.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", team.slug)
     msg := sprintf("Schema Violation: Team '%v' has invalid slug '%v'. Slugs must be lowercase alphanumeric with hyphens only (no spaces).", [team.name, team.slug])
 }
+
+# 7. Validate folder UID format (RFC 1123 compliant)
+deny[msg] {
+    folder := input.folders[_]
+    folder.uid
+    not regex.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", folder.uid)
+    msg := sprintf("Schema Violation: Folder '%v' has invalid UID '%v'. UIDs must be lowercase alphanumeric with hyphens only (no spaces).", [folder.title, folder.uid])
+}
+
+# 8. Deny untrimmed whitespace in team roles
+deny[msg] {
+    team := input.teams[_]
+    role := team.roles[_]
+    regex.match("^[ ]+|[ ]+$", role)
+    msg := sprintf("Schema Violation: Team '%v' has role '%v' with leading or trailing whitespace.", [team.name, role])
+}
