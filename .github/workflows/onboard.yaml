@@ -48,7 +48,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Add Resource using native yq
+      - name: Add Resource using clean YAML templates
         env:
           TYPE: ${{ github.event.inputs.resource_type }}
           NAME: ${{ github.event.inputs.name }}
@@ -61,48 +61,73 @@ jobs:
           set -euo pipefail
 
           if [[ "$TYPE" == "team" ]]; then
-            ENTRY="{\"name\": \"$NAME\", \"slug\": \"$SLUG\"}"
+            cat <<EOF | yq -i '.teams += [load("/dev/stdin")]' chart/values/Team.yaml
+            name: $NAME
+            slug: $SLUG
+            EOF
+
             if [[ -n "$ROLES" ]]; then
-              ENTRY=$(echo "$ENTRY" | yq -o=json ".roles = (\"$ROLES\" | split(\",\"))")
+              yq -i "(.teams[] | select(.slug == '$SLUG')).roles = ('$ROLES' | split(','))" chart/values/Team.yaml
             fi
             if [[ -n "$SYNC_GROUPS" ]]; then
-              ENTRY=$(echo "$ENTRY" | yq -o=json ".syncGroups = (\"$SYNC_GROUPS\" | split(\",\"))")
+              yq -i "(.teams[] | select(.slug == '$SLUG')).syncGroups = ('$SYNC_GROUPS' | split(','))" chart/values/Team.yaml
             fi
-            echo "$ENTRY" | yq -P -i '.teams += [load("/dev/stdin")]' chart/values/Team.yaml
 
-            # If an LBAC log selector was provided with the team, automatically register LBAC rule and Query permission
             if [[ -n "$SELECTOR" ]]; then
-              LBAC_ENTRY="{\"name\": \"$SLUG\", \"team\": \"$SLUG\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
-              echo "$LBAC_ENTRY" | yq -P -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+              cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+              name: $SLUG
+              team: $SLUG
+              datasource: loki-lbac
+              selector: '$SELECTOR'
+              EOF
 
-              PERM_ENTRY="{\"team\": \"$SLUG\", \"permission\": \"Query\"}"
-              echo "$PERM_ENTRY" | yq -P -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
+              cat <<EOF | yq -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
+              team: $SLUG
+              permission: Query
+              EOF
             fi
 
           elif [[ "$TYPE" == "folder" ]]; then
             OWNER_TEAM="${OWNER:-platform}"
-            ENTRY="{\"title\": \"$NAME\", \"uid\": \"$SLUG\", \"parentUid\": \"osttra\", \"owner\": \"$OWNER_TEAM\", \"permissions\": [{\"role\": \"Viewer\", \"permission\": 1}, {\"team\": \"$OWNER_TEAM\", \"permission\": 4}]}"
-            echo "$ENTRY" | yq -P -i '.folders += [load("/dev/stdin")]' chart/values/GrafanaFolder.yaml
+            cat <<EOF | yq -i '.folders += [load("/dev/stdin")]' chart/values/GrafanaFolder.yaml
+            title: $NAME
+            uid: $SLUG
+            parentUid: osttra
+            owner: $OWNER_TEAM
+            permissions:
+              - role: Viewer
+                permission: 1
+              - team: $OWNER_TEAM
+                permission: 4
+            EOF
 
           elif [[ "$TYPE" == "service_account" ]]; then
-            ENTRY="{\"name\": \"$NAME\", \"role\": \"None\", \"secretName\": \"${SLUG}-token\"}"
+            cat <<EOF | yq -i '.serviceAccounts += [load("/dev/stdin")]' chart/values/GrafanaServiceAccount.yaml
+            name: $NAME
+            role: None
+            secretName: ${SLUG}-token
+            EOF
+
             if [[ -n "$OWNER" ]]; then
-              ENTRY=$(echo "$ENTRY" | yq -o=json ".owner = \"$OWNER\"")
+              yq -i "(.serviceAccounts[] | select(.name == '$NAME')).owner = '$OWNER'" chart/values/GrafanaServiceAccount.yaml
             fi
             if [[ -n "$ROLES" ]]; then
-              ENTRY=$(echo "$ENTRY" | yq -o=json ".fixedRoles = (\"$ROLES\" | split(\",\"))")
+              yq -i "(.serviceAccounts[] | select(.name == '$NAME')).fixedRoles = ('$ROLES' | split(','))" chart/values/GrafanaServiceAccount.yaml
             fi
-            echo "$ENTRY" | yq -P -i '.serviceAccounts += [load("/dev/stdin")]' chart/values/GrafanaServiceAccount.yaml
 
           elif [[ "$TYPE" == "lbac_rule" ]]; then
             TEAM_TARGET="${OWNER:-$SLUG}"
-            # 1. Add LBAC rule with selector to TeamLBACRule.yaml
-            ENTRY="{\"name\": \"$SLUG\", \"team\": \"$TEAM_TARGET\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
-            echo "$ENTRY" | yq -P -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+            cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+            name: $SLUG
+            team: $TEAM_TARGET
+            datasource: loki-lbac
+            selector: '$SELECTOR'
+            EOF
 
-            # 2. Automatically grant Query permission on loki-lbac in ResourcePermission.yaml
-            PERM_ENTRY="{\"team\": \"$TEAM_TARGET\", \"permission\": \"Query\"}"
-            echo "$PERM_ENTRY" | yq -P -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
+            cat <<EOF | yq -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
+            team: $TEAM_TARGET
+            permission: Query
+            EOF
           fi
 
       - name: Setup Helm
@@ -128,5 +153,5 @@ jobs:
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore(gitops): onboard ${{ github.event.inputs.resource_type }} '${{ github.event.inputs.name }}' and sync permissions"
+          git commit -m "chore(gitops): onboard ${{ github.event.inputs.resource_type }} '${{ github.event.inputs.name }}'"
           git push origin main
