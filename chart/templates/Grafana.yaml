@@ -5,11 +5,6 @@ metadata:
   name: {{ .Values.grafana.name | default "grafanacloud-osttra" }}
   labels:
     {{- include "grafana-admin-platform.labels" . | nindent 4 }}
-    {{- if .Values.grafana.matchLabels }}
-    {{- toYaml .Values.grafana.matchLabels | nindent 4 }}
-    {{- else }}
-    dashboards: "osttra"
-    {{- end }}
 spec:
   external:
     url: {{ .Values.grafana.url | quote }}
