@@ -3,7 +3,7 @@
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaManifest
 metadata:
-  name: {{ .slug }}-team
+  name: {{ printf "%s-team" (.slug | lower | replace " " "-") }}
   labels:
     {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
     owner: {{ .owner | default "platform" }}
@@ -17,7 +17,7 @@ spec:
     apiVersion: iam.grafana.app/v0alpha1
     kind: Team
     metadata:
-      name: {{ .slug }}
+      name: {{ .slug | lower | replace " " "-" }}
     spec:
       name: {{ .name | quote }}
       {{- if .email }}

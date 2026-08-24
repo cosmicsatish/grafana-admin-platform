@@ -82,17 +82,20 @@ jobs:
           SELECTOR: ${{ github.event.inputs.selector }}
         run: |
           python - <<'PY'
-          import os, sys, yaml
+          import os, sys, re, yaml
 
           action = os.environ.get("ACTION", "add_or_update")
           confirm_delete = os.environ.get("CONFIRM_DELETE", "")
           res_type = os.environ.get("TYPE", "")
           name = os.environ.get("NAME", "").strip()
-          slug = os.environ.get("SLUG", "").strip()
+          slug_raw = os.environ.get("SLUG", "").strip()
           owner = os.environ.get("OWNER", "").strip()
           roles_raw = os.environ.get("ROLES", "").strip()
           sync_groups_raw = os.environ.get("SYNC_GROUPS", "").strip()
           selector = os.environ.get("SELECTOR", "").strip()
+
+          # Normalize slug to RFC 1123 DNS-safe format (lowercase, replace spaces/symbols with hyphens)
+          slug = re.sub(r'[^a-z0-9-]', '-', slug_raw.lower()).strip('-') if slug_raw else re.sub(r'[^a-z0-9-]', '-', name.lower()).strip('-')
 
           roles = [r.strip() for r in roles_raw.split(",") if r.strip()]
           sync_groups = [s.strip() for s in sync_groups_raw.split(",") if s.strip()]
@@ -117,21 +120,21 @@ jobs:
               if res_type == "team":
                   team_file = "chart/values/Team.yaml"
                   t_data = load_yaml(team_file)
-                  t_data["teams"] = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("name") != name]
+                  t_data["teams"] = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name") != name]
                   save_yaml(team_file, t_data)
 
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
                   if p_data.get("datasourcePermissions"):
                       p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw
                       ]
                       save_yaml(perm_file, p_data)
 
               elif res_type == "folder":
                   folder_file = "chart/values/GrafanaFolder.yaml"
                   f_data = load_yaml(folder_file)
-                  f_data["folders"] = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("title") != name]
+                  f_data["folders"] = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title") != name]
                   save_yaml(folder_file, f_data)
 
               elif res_type == "service_account":
@@ -143,14 +146,14 @@ jobs:
               elif res_type == "lbac_rule":
                   lbac_file = "chart/values/TeamLBACRule.yaml"
                   l_data = load_yaml(lbac_file)
-                  l_data["lbacRules"] = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("team") != slug]
+                  l_data["lbacRules"] = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw]
                   save_yaml(lbac_file, l_data)
 
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
                   if p_data.get("datasourcePermissions"):
                       p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw
                       ]
                       save_yaml(perm_file, p_data)
 
@@ -160,7 +163,7 @@ jobs:
           if res_type == "team":
               team_file = "chart/values/Team.yaml"
               t_data = load_yaml(team_file)
-              teams = [t for t in t_data.get("teams", []) if t.get("slug") != slug]
+              teams = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("slug") != slug_raw]
               team_entry = {
                   "name": name,
                   "slug": slug,
@@ -178,7 +181,7 @@ jobs:
               if selector:
                   lbac_file = "chart/values/TeamLBACRule.yaml"
                   l_data = load_yaml(lbac_file)
-                  rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug]
+                  rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("name") != slug_raw]
                   rules.append({
                       "name": slug,
                       "team": slug,
@@ -191,7 +194,7 @@ jobs:
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
                   if p_data.get("datasourcePermissions"):
-                      assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug]
+                      assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw]
                       assigns.append({"team": slug, "permission": "Query"})
                       p_data["datasourcePermissions"][0]["assignments"] = assigns
                       save_yaml(perm_file, p_data)
@@ -200,7 +203,7 @@ jobs:
               owner_team = owner if owner else "platform"
               folder_file = "chart/values/GrafanaFolder.yaml"
               f_data = load_yaml(folder_file)
-              folders = [f for f in f_data.get("folders", []) if f.get("uid") != slug]
+              folders = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("uid") != slug_raw]
               folders.append({
                   "title": name,
                   "uid": slug,
@@ -237,7 +240,7 @@ jobs:
               target_team = owner if owner else slug
               lbac_file = "chart/values/TeamLBACRule.yaml"
               l_data = load_yaml(lbac_file)
-              rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug]
+              rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("name") != slug_raw]
               rules.append({
                   "name": slug,
                   "team": target_team,
@@ -250,7 +253,7 @@ jobs:
               perm_file = "chart/values/ResourcePermission.yaml"
               p_data = load_yaml(perm_file)
               if p_data.get("datasourcePermissions"):
-                  assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != target_team]
+                  assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != target_team and a.get("team") != slug_raw]
                   assigns.append({"team": target_team, "permission": "Query"})
                   p_data["datasourcePermissions"][0]["assignments"] = assigns
                   save_yaml(perm_file, p_data)

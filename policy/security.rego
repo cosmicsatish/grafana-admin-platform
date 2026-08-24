@@ -34,3 +34,11 @@ deny[msg] {
     not team.slug
     msg := sprintf("Schema Violation: Team '%v' is missing a required slug identifier.", [team.name])
 }
+
+# 6. Validate team slug format (RFC 1123 compliant: lowercase alphanumeric and hyphens, no spaces)
+deny[msg] {
+    team := input.teams[_]
+    team.slug
+    not regex.match("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", team.slug)
+    msg := sprintf("Schema Violation: Team '%v' has invalid slug '%v'. Slugs must be lowercase alphanumeric with hyphens only (no spaces).", [team.name, team.slug])
+}
