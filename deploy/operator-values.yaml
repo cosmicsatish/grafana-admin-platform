@@ -1,10 +1,9 @@
 # Values for the official Grafana Operator chart.
-# Keep this file intentionally small; use the upstream chart as much as possible.
 leaderElect: true
 logging:
   level: info
   encoder: json
-# We intentionally use mutable CRDs so Helm upgrades can reconcile CRD changes.
-# This avoids the manual CRD step required by the default immutable CRD mode.
+# Periodic resync interval for automatic drift detection & self-healing
+resyncPeriod: 30s
 crds:
   immutable: false

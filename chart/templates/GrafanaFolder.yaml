@@ -3,10 +3,9 @@
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaFolder
 metadata:
-  name: {{ .title | lower | replace " " "-" }}-folder
+  name: {{ .uid }}-folder
   labels:
     {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
-    owner: {{ .owner | default "platform" }}
 spec:
   {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
   uid: {{ .uid | quote }}
@@ -18,16 +17,17 @@ spec:
   permissions: |
     {
       "items": [
-        {{- $length := len .permissions -}}
-        {{- range $i, $perm := .permissions }}
-        {{- if $perm.role }}
-        { "role": {{ $perm.role | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
-        {{- else if $perm.team }}
-        { "team": {{ $perm.team | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
-        {{- else if $perm.userLogin }}
-        { "userLogin": {{ $perm.userLogin | quote }}, "permission": {{ $perm.permission }} }{{ if lt (add $i 1) $length }},{{ end }}
-        {{- end }}
-        {{- end }}
+        {{- $items := list -}}
+        {{- range .permissions -}}
+          {{- if .role -}}
+            {{- $items = append $items (printf "{\"role\": %s, \"permission\": %d}" (.role | quote) (int .permission)) -}}
+          {{- else if .teamId -}}
+            {{- $items = append $items (printf "{\"teamId\": %d, \"permission\": %d}" (int .teamId) (int .permission)) -}}
+          {{- else if .userId -}}
+            {{- $items = append $items (printf "{\"userId\": %d, \"permission\": %d}" (int .userId) (int .permission)) -}}
+          {{- end -}}
+        {{- end -}}
+        {{- join "," $items }}
       ]
     }
   {{- end }}
