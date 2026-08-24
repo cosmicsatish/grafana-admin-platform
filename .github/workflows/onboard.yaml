@@ -39,7 +39,7 @@ on:
         required: false
         type: string
       roles:
-        description: 'Fixed Roles (comma-separated, e.g. fixed:dashboards:reader,fixed:datasources:explorer)'
+        description: 'Fixed Roles (comma-separated, e.g. fixed:dashboards:reader, fixed:datasources:explorer)'
         required: false
         type: string
       sync_groups:
@@ -59,9 +59,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Process Resource Mutation using native yq
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Process Resource Mutation
         env:
           ACTION: ${{ github.event.inputs.action }}
           CONFIRM_DELETE: ${{ github.event.inputs.confirm_delete }}
@@ -73,111 +81,185 @@ jobs:
           SYNC_GROUPS: ${{ github.event.inputs.sync_groups }}
           SELECTOR: ${{ github.event.inputs.selector }}
         run: |
-          set -euo pipefail
+          python - <<'PY'
+          import os, sys, yaml
 
-          if [[ "$ACTION" == "remove" ]]; then
-            if [[ "$CONFIRM_DELETE" != "DELETE" ]]; then
-              echo "❌ Safety Check Failed: You must type 'DELETE' in the confirm_delete input to remove resources." >&2
-              exit 1
-            fi
+          action = os.environ.get("ACTION", "add_or_update")
+          confirm_delete = os.environ.get("CONFIRM_DELETE", "")
+          res_type = os.environ.get("TYPE", "")
+          name = os.environ.get("NAME", "").strip()
+          slug = os.environ.get("SLUG", "").strip()
+          owner = os.environ.get("OWNER", "").strip()
+          roles_raw = os.environ.get("ROLES", "").strip()
+          sync_groups_raw = os.environ.get("SYNC_GROUPS", "").strip()
+          selector = os.environ.get("SELECTOR", "").strip()
 
-            echo "🗑️ Safety check passed. Removing $TYPE with slug/name: $SLUG / $NAME"
-            if [[ "$TYPE" == "team" ]]; then
-              yq -i 'del(.teams[] | select(.slug == env(SLUG) or .name == env(NAME)))' chart/values/Team.yaml
-              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == env(SLUG)))' chart/values/ResourcePermission.yaml
-            elif [[ "$TYPE" == "folder" ]]; then
-              yq -i 'del(.folders[] | select(.uid == env(SLUG) or .title == env(NAME)))' chart/values/GrafanaFolder.yaml
-            elif [[ "$TYPE" == "service_account" ]]; then
-              yq -i 'del(.serviceAccounts[] | select(.name == env(NAME)))' chart/values/GrafanaServiceAccount.yaml
-            elif [[ "$TYPE" == "lbac_rule" ]]; then
-              yq -i 'del(.lbacRules[] | select(.name == env(SLUG) or .team == env(SLUG)))' chart/values/TeamLBACRule.yaml
-              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == env(SLUG)))' chart/values/ResourcePermission.yaml
-            fi
-            exit 0
-          fi
+          roles = [r.strip() for r in roles_raw.split(",") if r.strip()]
+          sync_groups = [s.strip() for s in sync_groups_raw.split(",") if s.strip()]
+
+          def load_yaml(path):
+              if not os.path.exists(path):
+                  return {}
+              with open(path, "r") as f:
+                  return yaml.safe_load(f) or {}
+
+          def save_yaml(path, data):
+              with open(path, "w") as f:
+                  yaml.dump(data, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
+
+          if action == "remove":
+              if confirm_delete != "DELETE":
+                  print("❌ Safety Check Failed: You must type 'DELETE' in confirm_delete to remove resources.", file=sys.stderr)
+                  sys.exit(1)
+
+              print(f"🗑️ Safety check passed. Removing {res_type} with slug/name: {slug} / {name}")
+
+              if res_type == "team":
+                  team_file = "chart/values/Team.yaml"
+                  t_data = load_yaml(team_file)
+                  t_data["teams"] = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("name") != name]
+                  save_yaml(team_file, t_data)
+
+                  perm_file = "chart/values/ResourcePermission.yaml"
+                  p_data = load_yaml(perm_file)
+                  if p_data.get("datasourcePermissions"):
+                      p_data["datasourcePermissions"][0]["assignments"] = [
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug
+                      ]
+                      save_yaml(perm_file, p_data)
+
+              elif res_type == "folder":
+                  folder_file = "chart/values/GrafanaFolder.yaml"
+                  f_data = load_yaml(folder_file)
+                  f_data["folders"] = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("title") != name]
+                  save_yaml(folder_file, f_data)
+
+              elif res_type == "service_account":
+                  sa_file = "chart/values/GrafanaServiceAccount.yaml"
+                  s_data = load_yaml(sa_file)
+                  s_data["serviceAccounts"] = [s for s in s_data.get("serviceAccounts", []) if s.get("name") != name]
+                  save_yaml(sa_file, s_data)
+
+              elif res_type == "lbac_rule":
+                  lbac_file = "chart/values/TeamLBACRule.yaml"
+                  l_data = load_yaml(lbac_file)
+                  l_data["lbacRules"] = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("team") != slug]
+                  save_yaml(lbac_file, l_data)
+
+                  perm_file = "chart/values/ResourcePermission.yaml"
+                  p_data = load_yaml(perm_file)
+                  if p_data.get("datasourcePermissions"):
+                      p_data["datasourcePermissions"][0]["assignments"] = [
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug
+                      ]
+                      save_yaml(perm_file, p_data)
+
+              sys.exit(0)
 
           # Action: add_or_update
-          if [[ "$TYPE" == "team" ]]; then
-            # Delete old entry if exists to ensure clean update
-            yq -i 'del(.teams[] | select(.slug == env(SLUG)))' chart/values/Team.yaml
+          if res_type == "team":
+              team_file = "chart/values/Team.yaml"
+              t_data = load_yaml(team_file)
+              teams = [t for t in t_data.get("teams", []) if t.get("slug") != slug]
+              team_entry = {
+                  "name": name,
+                  "slug": slug,
+              }
+              if owner:
+                  team_entry["owner"] = owner
+              if sync_groups:
+                  team_entry["syncGroups"] = sync_groups
+              if roles:
+                  team_entry["roles"] = roles
+              teams.append(team_entry)
+              t_data["teams"] = teams
+              save_yaml(team_file, t_data)
 
-            cat <<EOF | yq -i '.teams += [load("/dev/stdin")]' chart/values/Team.yaml
-            name: $NAME
-            slug: $SLUG
-            EOF
+              if selector:
+                  lbac_file = "chart/values/TeamLBACRule.yaml"
+                  l_data = load_yaml(lbac_file)
+                  rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug]
+                  rules.append({
+                      "name": slug,
+                      "team": slug,
+                      "datasource": "grafanacloud-cosmicsatish-logs-lbac",
+                      "selector": selector
+                  })
+                  l_data["lbacRules"] = rules
+                  save_yaml(lbac_file, l_data)
 
-            if [[ -n "$ROLES" ]]; then
-              yq -i '(.teams[] | select(.slug == env(SLUG))).roles = (env(ROLES) | split(","))' chart/values/Team.yaml
-            fi
-            if [[ -n "$SYNC_GROUPS" ]]; then
-              yq -i '(.teams[] | select(.slug == env(SLUG))).syncGroups = (env(SYNC_GROUPS) | split(","))' chart/values/Team.yaml
-            fi
+                  perm_file = "chart/values/ResourcePermission.yaml"
+                  p_data = load_yaml(perm_file)
+                  if p_data.get("datasourcePermissions"):
+                      assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug]
+                      assigns.append({"team": slug, "permission": "Query"})
+                      p_data["datasourcePermissions"][0]["assignments"] = assigns
+                      save_yaml(perm_file, p_data)
 
-            if [[ -n "$SELECTOR" ]]; then
-              yq -i 'del(.lbacRules[] | select(.name == env(SLUG)))' chart/values/TeamLBACRule.yaml
-              cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
-              name: $SLUG
-              team: $SLUG
-              datasource: grafanacloud-cosmicsatish-logs-lbac
-              selector: '$SELECTOR'
-              EOF
+          elif res_type == "folder":
+              owner_team = owner if owner else "platform"
+              folder_file = "chart/values/GrafanaFolder.yaml"
+              f_data = load_yaml(folder_file)
+              folders = [f for f in f_data.get("folders", []) if f.get("uid") != slug]
+              folders.append({
+                  "title": name,
+                  "uid": slug,
+                  "parentUid": "osttra",
+                  "owner": owner_team,
+                  "permissions": [
+                      {"role": "Viewer", "permission": 1},
+                      {"team": owner_team, "permission": 4}
+                  ]
+              })
+              f_data["folders"] = folders
+              save_yaml(folder_file, f_data)
 
-              yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == env(SLUG)))' chart/values/ResourcePermission.yaml
-              cat <<EOF | yq -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
-              team: $SLUG
-              permission: Query
-              EOF
-            fi
+          elif res_type == "service_account":
+              sa_file = "chart/values/GrafanaServiceAccount.yaml"
+              s_data = load_yaml(sa_file)
+              sas = [s for s in s_data.get("serviceAccounts", []) if s.get("name") != name]
+              sa_entry = {
+                  "name": name,
+                  "role": "None",
+                  "secretName": f"{slug}-token",
+                  "tokenName": f"{slug}-token",
+                  "tokenExpires": "2027-12-31T23:59:59Z"
+              }
+              if owner:
+                  sa_entry["owner"] = owner
+              if roles:
+                  sa_entry["fixedRoles"] = roles
+              sas.append(sa_entry)
+              s_data["serviceAccounts"] = sas
+              save_yaml(sa_file, s_data)
 
-          elif [[ "$TYPE" == "folder" ]]; then
-            OWNER_TEAM="${OWNER:-platform}"
-            yq -i 'del(.folders[] | select(.uid == env(SLUG)))' chart/values/GrafanaFolder.yaml
-            cat <<EOF | yq -i '.folders += [load("/dev/stdin")]' chart/values/GrafanaFolder.yaml
-            title: $NAME
-            uid: $SLUG
-            parentUid: osttra
-            owner: $OWNER_TEAM
-            permissions:
-              - role: Viewer
-                permission: 1
-              - team: $OWNER_TEAM
-                permission: 4
-            EOF
+          elif res_type == "lbac_rule":
+              target_team = owner if owner else slug
+              lbac_file = "chart/values/TeamLBACRule.yaml"
+              l_data = load_yaml(lbac_file)
+              rules = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug]
+              rules.append({
+                  "name": slug,
+                  "team": target_team,
+                  "datasource": "grafanacloud-cosmicsatish-logs-lbac",
+                  "selector": selector
+              })
+              l_data["lbacRules"] = rules
+              save_yaml(lbac_file, l_data)
 
-          elif [[ "$TYPE" == "service_account" ]]; then
-            yq -i 'del(.serviceAccounts[] | select(.name == env(NAME)))' chart/values/GrafanaServiceAccount.yaml
-            cat <<EOF | yq -i '.serviceAccounts += [load("/dev/stdin")]' chart/values/GrafanaServiceAccount.yaml
-            name: $NAME
-            role: None
-            secretName: ${SLUG}-token
-            EOF
+              perm_file = "chart/values/ResourcePermission.yaml"
+              p_data = load_yaml(perm_file)
+              if p_data.get("datasourcePermissions"):
+                  assigns = [a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != target_team]
+                  assigns.append({"team": target_team, "permission": "Query"})
+                  p_data["datasourcePermissions"][0]["assignments"] = assigns
+                  save_yaml(perm_file, p_data)
 
-            if [[ -n "$OWNER" ]]; then
-              yq -i '(.serviceAccounts[] | select(.name == env(NAME))).owner = env(OWNER)' chart/values/GrafanaServiceAccount.yaml
-            fi
-            if [[ -n "$ROLES" ]]; then
-              yq -i '(.serviceAccounts[] | select(.name == env(NAME))).fixedRoles = (env(ROLES) | split(","))' chart/values/GrafanaServiceAccount.yaml
-            fi
-
-          elif [[ "$TYPE" == "lbac_rule" ]]; then
-            export TEAM_TARGET="${OWNER:-$SLUG}"
-            yq -i 'del(.lbacRules[] | select(.name == env(SLUG)))' chart/values/TeamLBACRule.yaml
-            cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
-            name: $SLUG
-            team: $TEAM_TARGET
-            datasource: grafanacloud-cosmicsatish-logs-lbac
-            selector: '$SELECTOR'
-            EOF
-
-            yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == env(TEAM_TARGET)))' chart/values/ResourcePermission.yaml
-            cat <<EOF | yq -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
-            team: $TEAM_TARGET
-            permission: Query
-            EOF
-          fi
+          print(f"✅ Successfully processed {action} for {res_type} '{name}' ({slug})")
+          PY
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@v4
 
       - name: Validate Syntax & Linting
         run: |
