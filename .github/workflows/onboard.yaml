@@ -11,6 +11,11 @@ on:
         options:
           - add_or_update
           - remove
+      confirm_delete:
+        description: 'Safety Confirmation (Must type "DELETE" if action is remove)'
+        required: false
+        default: ''
+        type: string
       resource_type:
         description: 'Resource Type'
         required: true
@@ -59,6 +64,7 @@ jobs:
       - name: Process Resource Mutation using native yq
         env:
           ACTION: ${{ github.event.inputs.action }}
+          CONFIRM_DELETE: ${{ github.event.inputs.confirm_delete }}
           TYPE: ${{ github.event.inputs.resource_type }}
           NAME: ${{ github.event.inputs.name }}
           SLUG: ${{ github.event.inputs.slug }}
@@ -70,7 +76,12 @@ jobs:
           set -euo pipefail
 
           if [[ "$ACTION" == "remove" ]]; then
-            echo "🗑️ Removing $TYPE with slug/name: $SLUG / $NAME"
+            if [[ "$CONFIRM_DELETE" != "DELETE" ]]; then
+              echo "❌ Safety Check Failed: You must type 'DELETE' in the confirm_delete input to remove resources." >&2
+              exit 1
+            fi
+
+            echo "🗑️ Safety check passed. Removing $TYPE with slug/name: $SLUG / $NAME"
             if [[ "$TYPE" == "team" ]]; then
               yq -i 'del(.teams[] | select(.slug == env(SLUG) or .name == env(NAME)))' chart/values/Team.yaml
               yq -i 'del(.datasourcePermissions[0].assignments[] | select(.team == env(SLUG)))' chart/values/ResourcePermission.yaml
