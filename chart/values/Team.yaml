@@ -307,6 +307,10 @@ teams:
       - fixed:datasources:explorer
   - name: Test Automation Team
     slug: test-automation-team
+    owner: platform
     roles:
       - fixed:dashboards:reader
+      - fixed:dashboards:writer
       - fixed:datasources:explorer
+    syncGroups:
+      - aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
