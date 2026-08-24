@@ -4,9 +4,9 @@
 # Scoped access only for the loki-lbac datasource.
 
 datasourcePermissions:
-  - name: datasource-permissions-loki-lbac
+  - name: datasource-permissions-grafanacloud-logs-lbac
     manifestName: loki-lbac-access
-    datasource: loki-lbac
+    datasource: grafanacloud-cosmicsatish-logs-lbac
     assignments:
       - team: sre
         permission: Query

@@ -1,13 +1,29 @@
 datasources:
-  - name: loki-lbac-datasource
+  - name: grafanacloud-cosmicsatish-logs-lbac-datasource
     datasource:
-      name: "loki-lbac"
+      name: "grafanacloud-cosmicsatish-logs-lbac"
       type: "loki"
       access: "proxy"
-      url: "https://logs-prod-006.grafana.net"
-      uid: "ffvme66npet4wf"
+      url: "https://logs-prod-028.grafana.net"
+      uid: "grafanacloud-logs-lbac"
       isDefault: false
       editable: true
+      basicAuth: true
+      basicAuthUser: "1372265"
       jsonData:
-        httpHeaderName1: "X-Scope-OrgID"
+        derivedFields:
+          - datasourceUid: "grafanacloud-traces"
+            matcherRegex: '[tT]race_?[iI][dD]"?[:=]"?(\\w+)'
+            matcherType: "regex"
+            name: "traceID"
+            url: "${__value.raw}"
+          - datasourceUid: "grafanacloud-traces"
+            matcherRegex: '[tT]race_?[iI][dD]'
+            matcherType: "label"
+            name: "traceID (field)"
+            url: "${__value.raw}"
+        streamingEnabled:
+          search: true
+        timeout: "300"
         maxLines: 5000
+        httpHeaderName1: "X-Scope-OrgID"
