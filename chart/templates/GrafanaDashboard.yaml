@@ -9,3 +9,15 @@ spec:
   grafanaCom:
     id: 22785
   folderUID: "osttra"
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: grafana-alloy-overview-dashboard
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+spec:
+  {{- include "grafana-admin-platform.instanceSelector" . | nindent 2 }}
+  grafanaCom:
+    id: 20409
+  folderUID: "osttra"
