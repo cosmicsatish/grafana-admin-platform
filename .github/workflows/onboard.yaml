@@ -22,7 +22,7 @@ on:
         required: true
         type: string
       owner:
-        description: 'Owner Team (for folders or service accounts)'
+        description: 'Owner Team (for folders, service accounts, or LBAC rules)'
         required: false
         type: string
       roles:
@@ -70,6 +70,15 @@ jobs:
             fi
             echo "$ENTRY" | yq -P -i '.teams += [load("/dev/stdin")]' chart/values/Team.yaml
 
+            # If an LBAC log selector was provided with the team, automatically register LBAC rule and Query permission
+            if [[ -n "$SELECTOR" ]]; then
+              LBAC_ENTRY="{\"name\": \"$SLUG\", \"team\": \"$SLUG\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
+              echo "$LBAC_ENTRY" | yq -P -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+
+              PERM_ENTRY="{\"team\": \"$SLUG\", \"permission\": \"Query\"}"
+              echo "$PERM_ENTRY" | yq -P -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
+            fi
+
           elif [[ "$TYPE" == "folder" ]]; then
             OWNER_TEAM="${OWNER:-platform}"
             ENTRY="{\"title\": \"$NAME\", \"uid\": \"$SLUG\", \"parentUid\": \"osttra\", \"owner\": \"$OWNER_TEAM\", \"permissions\": [{\"role\": \"Viewer\", \"permission\": 1}, {\"team\": \"$OWNER_TEAM\", \"permission\": 4}]}"
@@ -86,8 +95,14 @@ jobs:
             echo "$ENTRY" | yq -P -i '.serviceAccounts += [load("/dev/stdin")]' chart/values/GrafanaServiceAccount.yaml
 
           elif [[ "$TYPE" == "lbac_rule" ]]; then
-            ENTRY="{\"name\": \"$SLUG\", \"team\": \"${OWNER:-$SLUG}\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
+            TEAM_TARGET="${OWNER:-$SLUG}"
+            # 1. Add LBAC rule with selector to TeamLBACRule.yaml
+            ENTRY="{\"name\": \"$SLUG\", \"team\": \"$TEAM_TARGET\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
             echo "$ENTRY" | yq -P -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+
+            # 2. Automatically grant Query permission on loki-lbac in ResourcePermission.yaml
+            PERM_ENTRY="{\"team\": \"$TEAM_TARGET\", \"permission\": \"Query\"}"
+            echo "$PERM_ENTRY" | yq -P -i '.datasourcePermissions[0].assignments += [load("/dev/stdin")]' chart/values/ResourcePermission.yaml
           fi
 
       - name: Setup Helm
@@ -113,5 +128,5 @@ jobs:
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore(gitops): onboard ${{ github.event.inputs.resource_type }} '${{ github.event.inputs.name }}'"
+          git commit -m "chore(gitops): onboard ${{ github.event.inputs.resource_type }} '${{ github.event.inputs.name }}' and sync permissions"
           git push origin main
