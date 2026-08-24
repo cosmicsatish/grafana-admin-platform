@@ -1,0 +1,813 @@
+folderUID: alerting-3tqje4zxqj67y
+name: integrations-windows-exporter-custom
+interval: 1m
+rules:
+- uid: 51b61d41-7fae-5f2d-96d8-c1e968668878
+  title: WindowsDiskAlmostOutOfSpace_Critical
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - ((windows_logical_disk_free_bytes) / (windows_logical_disk_size_bytes))
+        * 100 > 95
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: critical
+  annotations:
+    description: Disk space is more than 95% full for 15 minutes.
+    summary: Windows Disk Critical >95% utilized on {{ $labels.instance }}
+- uid: a9a4d5ed-4eea-5473-9e35-a5fcedde06a4
+  title: WindowsDiskAlmostOutOfSpace_Warning
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - ((windows_logical_disk_free_bytes) / (windows_logical_disk_size_bytes))
+        * 100 > 90
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: warning
+  annotations:
+    description: Disk space is more than 90% full for 15 minutes.
+    summary: Windows Disk Warning >90% utilized on {{ $labels.instance }}
+- uid: c927d158-53e4-540f-9a78-38cdbbf2aece
+  title: WindowsMemoryHighUtilization_Warning
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - ((windows_os_physical_memory_free_bytes / windows_cs_physical_memory_bytes)
+        * 100) > 90
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: warning
+  annotations:
+    description: Physical memory utilization has exceeded 90% for 15 minutes.
+    summary: Windows Memory Warning >90% on {{ $labels.instance }}
+- uid: 403edb81-2e56-5d88-b0e8-da997e0c5375
+  title: WindowsMemoryCommittedBytes_Critical
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (windows_os_virtual_memory_bytes - windows_os_virtual_memory_free_bytes)
+        / windows_os_virtual_memory_bytes * 100 > 80
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: critical
+  annotations:
+    description: Committed bytes in memory has exceeded 80% for 15 minutes.
+    summary: Windows Committed Memory Critical >80% on {{ $labels.instance }}
+- uid: 5748b9b1-5bd0-5f87-b73f-2b18f3d3ca24
+  title: WindowsMemoryCommittedBytes_Warning
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (windows_os_virtual_memory_bytes - windows_os_virtual_memory_free_bytes)
+        / windows_os_virtual_memory_bytes * 100 > 60
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: warning
+  annotations:
+    description: Committed bytes in memory has exceeded 60% for 15 minutes.
+    summary: Windows Committed Memory Warning >60% on {{ $labels.instance }}
+- uid: defa2af2-3385-5074-b71b-73a4591a7a20
+  title: WindowsAutoServiceStopped
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: count by (instance, job, name, status) (windows_service_status{name=~"lanman|nlasvc|DNScache|gpsvc|trkwks|w32time|winrm|csfalcon|splunkd|vss",
+        status!~"starting|stopping|ok"}) > 0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 30m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: critical
+  annotations:
+    description: Service {{ $labels.name }} is not running.
+    summary: Windows critical auto-service {{ $labels.name }} is stopped on {{ $labels.instance
+      }}
+- uid: 24b583ab-0430-5881-a7cb-53502e092027
+  title: WindowsNodeUnreachable
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: up{job=~".*windows.*"} == 0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: critical
+  annotations:
+    description: Windows exporter on {{ $labels.instance }} has been unreachable for
+      10 minutes.
+    summary: Windows node unreachable {{ $labels.instance }}
+- uid: dba59b31-345e-572f-a29b-4656a83ea0d1
+  title: WindowsNodeHasRebooted
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (time() - windows_system_system_up_time) < 3600
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 30m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    __converted_prometheus_rule__: 'true'
+    os: windows
+    severity: info
+  annotations:
+    description: Windows node {{ $labels.instance }} has rebooted within the last
+      60 minutes.
+    summary: Windows node rebooted recently {{ $labels.instance }}

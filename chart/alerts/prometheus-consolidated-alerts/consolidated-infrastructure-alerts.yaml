@@ -1,0 +1,972 @@
+folderUID: alerting-rxiy1eec9ooy
+name: consolidated_infrastructure_alerts
+interval: 1m
+rules:
+- uid: 72cd6ce7-c552-529b-8d87-ba62ec5b0b0a
+  title: Alloyprocessdown_warning
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: alloy_build_info{job="integrations/alloy-check", instance="ip-10-35-196-246.eu-west-1.compute.internal"}
+        > 1.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 2m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Alloy
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 1.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 1.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: Alloyprocessdown_warning high threshold reached on {{ $labels.instance
+      }}
+- uid: 713c1d81-bb03-5a9b-b5ca-10b0ae27d3a2
+  title: DiskSpace85Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - (windows_logical_disk_free_bytes{Organization="MarkitServ", Environment="Production"}
+        / on(instance, volume, Application, Environment, Organization) windows_logical_disk_size_bytes{Organization="MarkitServ",
+        Environment="Production"}) * 100 > 85.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syswin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 95.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 95.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: DiskSpace85Production high threshold reached on {{ $labels.instance }}
+- uid: 515b0c2f-4158-56ae-858a-124d2cdc136c
+  title: CpuUtilization80Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - (avg without (mode, core) (rate(windows_cpu_time_total{mode="idle",
+        Organization="MarkitServ", Environment="Production"}[5m])) * 100) > 80.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: LinuxNode
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syswin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 90.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 90.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: CpuUtilization80Production high threshold reached on {{ $labels.instance
+      }}
+- uid: f4b89dde-d0dd-5f87-926b-c59fbfc28eb8
+  title: WindowsMemoryUsage80Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (1 - (avg_over_time(windows_memory_available_bytes{Organization="MarkitServ",
+        Environment="Production"}[5m]) / avg_over_time(windows_memory_physical_total_bytes{Organization="MarkitServ",
+        Environment="Production"}[5m]))) * 100 > 80.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: WindowsNode
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syswin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 90.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 90.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: WindowsMemoryUsage80Production high threshold reached on {{ $labels.instance
+      }}
+- uid: 81e783e1-cbfb-5c0d-b237-4e108da9716a
+  title: DiskSpaceAvailable20Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (node_filesystem_avail_bytes{Organization="MarkitServ", Environment="Production",
+        fstype=~"ext4|xfs", mountpoint=~"^/(boot|home|var/tmp|tmp|etc|var/log|usr|opt/Tanium|var|opt)?$",
+        instance=~"(?i)^lon[789].*"} / on(instance, Application, Environment, Organization,
+        mountpoint) node_filesystem_size_bytes{Organization="MarkitServ", Environment="Production",
+        fstype=~"ext4|xfs", mountpoint=~"^/(boot|home|var/tmp|tmp|etc|var/log|usr|opt/Tanium|var|opt)?$",
+        instance=~"(?i)^lon[789].*"}) * 100 < 20.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syslin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if le $value 10.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if le
+      $value 10.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: DiskSpaceAvailable20Production high threshold reached on {{ $labels.instance
+      }}
+- uid: 6b6db37e-1290-5fbb-b817-79d983273e1f
+  title: CpuLoadRatio85Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: node_load5{Organization="MarkitServ", Environment="Production", instance=~"(?i)^lon[789].*"}
+        / on(instance, Application, Environment, Organization) count by (instance,
+        Application, Environment, Organization) (node_cpu_seconds_total{Organization="MarkitServ",
+        Environment="Production", mode="idle", instance=~"(?i)^lon[789].*"}) > 0.85
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: LinuxNode
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syslin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 1.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 1.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: CpuLoadRatio85Production high threshold reached on {{ $labels.instance
+      }}
+- uid: ed9da646-1cc9-56b5-82b2-799c7f3bbd6d
+  title: HighCpuUtilization80Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: 100 - (avg by (instance, Application, Environment, Organization) (rate(node_cpu_seconds_total{Organization="MarkitServ",
+        Environment="Production", mode="idle", instance=~"(?i)^lon[789].*"}[5m]))
+        * 100) > 80.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: LinuxNode
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syslin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 90.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 90.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: HighCpuUtilization80Production high threshold reached on {{ $labels.instance
+      }}
+- uid: 843019d2-e88e-5f59-a95a-4ca734762e63
+  title: InodeExhaustion80Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (node_filesystem_files_free{Organization="MarkitServ", Environment="Production",
+        fstype=~"ext4|xfs", mountpoint=~"^/(boot|home|var/tmp|tmp|etc|var/log|usr|opt/Tanium|var|opt)?$",
+        instance=~"(?i)^lon[789].*"} / on(instance, Application, Environment, Organization,
+        mountpoint) node_filesystem_files{Organization="MarkitServ", Environment="Production",
+        fstype=~"ext4|xfs", mountpoint=~"^/(boot|home|var/tmp|tmp|etc|var/log|usr|opt/Tanium|var|opt)?$",
+        instance=~"(?i)^lon[789].*"}) * 100 > 10.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 10m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syslin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if ge $value 20.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 20.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: InodeExhaustion80Production high threshold reached on {{ $labels.instance
+      }}
+- uid: c1e9cdb7-925e-55d4-966f-16dc63e8e28a
+  title: Memory10Production
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (node_memory_MemAvailable_bytes{Organization="MarkitServ", Environment="Production",
+        instance=~"(?i)^lon[789].*"} / on(instance, Application, Organization, Environment)
+        node_memory_MemTotal_bytes{Organization="MarkitServ", Environment="Production",
+        instance=~"(?i)^lon[789].*"}) * 100 < 10.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 15m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    __grafana_managed_route__: mserv
+    notify_syslin: 'true'
+    notify_toc: 'true'
+    severity: '{{ if le $value 5.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if le
+      $value 5.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: Memory10Production high threshold reached on {{ $labels.instance }}
