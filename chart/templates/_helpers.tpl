@@ -1,19 +1,18 @@
 {{/*
-Common labels
+Common metadata labels applied to all resources
 */}}
 {{- define "grafana-admin-platform.labels" -}}
-grafana-admin-platform: managed
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+grafana-admin-platform: managed
+dashboards: {{ .Values.grafana.matchLabels.dashboards | default "osttra" }}
 {{- end }}
 
 {{/*
-Grafana Instance Selector MatchLabels
+Standard Grafana Instance Selector for all child CRs
 */}}
-{{- define "grafana-admin-platform.matchLabels" -}}
-{{- if .Values.grafana.matchLabels }}
-{{- toYaml .Values.grafana.matchLabels }}
-{{- else }}
-dashboards: "osttra"
-{{- end }}
+{{- define "grafana-admin-platform.instanceSelector" -}}
+instanceSelector:
+  matchLabels:
+    dashboards: {{ .Values.grafana.matchLabels.dashboards | default "osttra" }}
 {{- end }}

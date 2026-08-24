@@ -5,13 +5,10 @@ kind: GrafanaManifest
 metadata:
   name: {{ .name }}
   labels:
-    {{- include "grafana-admin-platform.matchLabels" $ | nindent 4 }}
-    grafana-admin-platform: managed
+    {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
     owner: {{ .owner | default "platform" }}
 spec:
-  instanceSelector:
-    matchLabels:
-      {{- include "grafana-admin-platform.matchLabels" $ | nindent 6 }}
+  {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
   template:
     apiVersion: iam.grafana.app/v0alpha1
     kind: TeamLBACRule
