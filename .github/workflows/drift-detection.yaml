@@ -25,12 +25,13 @@ jobs:
           helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml > /tmp/rendered.yaml
           test -s /tmp/rendered.yaml
 
+      - name: Install Conftest
+        run: |
+          curl -sL https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz | sudo tar xz -C /usr/local/bin conftest
+
       - name: Policy Guardrails Check
         id: policy_check
-        uses: open-policy-agent/conftest-action@v1.5.0
-        with:
-          files: chart/values/*.yaml
-          policy: policy/
+        run: conftest test chart/values/*.yaml -p policy/
 
       - name: Notify on Drift or Policy Violation
         if: failure() && github.event_name == 'schedule'

@@ -39,17 +39,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RniE '(password:|token:|client_secret:|private_key:)' --include='*.yaml' . --exclude-dir=.github --exclude='*.md' \
-            | grep -vE '(secretName:|secretKeyRef:|key: token$|tokens:|password.*Secret|token.*Secret|README)'; then
+          if grep -RniE '(password:|token:|client_secret:|private_key:)' --include='*.yaml' . --exclude-dir=.github --exclude='*.md' | grep -vE '(secretName:|secretKeyRef:|key: token$|tokens:|password.*Secret|token.*Secret|README)'; then
             echo 'Potential credential literal found.' >&2
             exit 1
           fi
 
-      - name: Conftest Policy-as-Code Guardrails
-        uses: open-policy-agent/conftest-action@v1.5.0
-        with:
-          files: chart/values/*.yaml
-          policy: policy/
+      - name: Install Conftest
+        run: |
+          curl -sL https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz | sudo tar xz -C /usr/local/bin conftest
+
+      - name: Run Conftest Policy Guardrails
+        run: conftest test chart/values/*.yaml -p policy/
 
       - name: Setup Helm
         uses: azure/setup-helm@v4

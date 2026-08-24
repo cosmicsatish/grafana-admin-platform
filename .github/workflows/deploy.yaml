@@ -27,10 +27,24 @@ jobs:
         with:
           cluster_name: grafana-admin-gitops
 
-      - name: Deploy Operator & Declarative Platform
+      - name: Pre-configure CI Secrets if not present
         env:
           GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
           GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+        run: |
+          kubectl create namespace grafana-admin --dry-run=client -o yaml | kubectl apply -f -
+          if [[ -n "${GRAFANA_TOKEN:-}" ]]; then
+            kubectl create secret generic grafana-admin-token -n grafana-admin \
+              --from-literal=token="${GRAFANA_TOKEN}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          else
+            echo "::notice ::GRAFANA_TOKEN secret not set; creating placeholder secret for CI deployment validation."
+            kubectl create secret generic grafana-admin-token -n grafana-admin \
+              --from-literal=token="ci-validation-token-placeholder" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
+
+      - name: Deploy Operator & Declarative Platform
         run: |
           set -euo pipefail
           ./deploy/install.sh
