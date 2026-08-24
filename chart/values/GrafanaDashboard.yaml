@@ -1,0 +1,16 @@
+dashboards:
+- name: alert-groups-insights-dashboard
+  title: Alert Groups Insights
+  uid: 4636e079-0b6d-4eef-bc1f-3c277f1cbf6a
+  folderUID: general
+  file: dashboards/general/alert-groups-insights.json
+- name: grafana-operator-dashboard
+  title: Grafana Operator
+  uid: grafana-operator
+  folderUID: osttra
+  file: dashboards/osttra/grafana-operator.json
+- name: incident-insights-dashboard
+  title: Incident Insights
+  uid: d7c4531e-fbe5-44c3-b9f0-051c64e8fe51
+  folderUID: general
+  file: dashboards/general/incident-insights.json

@@ -1,17 +1,17 @@
-{{- range .Values.dashboards }}
+{{- range .Values.alertRuleGroups }}
 ---
 apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDashboard
+kind: GrafanaAlertRuleGroup
 metadata:
   name: {{ .name }}
   labels:
     {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
-    {{- if .folderUID }}
     folder: {{ .folderUID }}
-    {{- end }}
 spec:
   {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
-  folderUID: {{ .folderUID | default "general" | quote }}
-  json: |
-{{ $.Files.Get .file | indent 4 }}
+  folderUID: {{ .folderUID | quote }}
+  name: {{ .ruleGroupName | quote }}
+  interval: {{ .interval | default "1m" | quote }}
+  rules:
+    {{- toYaml .rules | nindent 4 }}
 {{- end }}
