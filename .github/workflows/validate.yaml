@@ -39,8 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RniE '(password:|token:|client_secret:|private_key:)' --include='*.yaml' . --exclude-dir=.github --exclude='*.md' \
-            | grep -vE '(secretName:|secretKeyRef:|key: token$|tokens:|password.*Secret|token.*Secret|README)'; then
+          if grep -RniE '(password:|token:|client_secret:|private_key:)' --include='*.yaml' . --exclude-dir=.github --exclude='*.md' | grep -vE '(secretName:|secretKeyRef:|key: token$|tokens:|password.*Secret|token.*Secret|README)'; then
             echo 'Potential credential literal found.' >&2
             exit 1
           fi
@@ -79,11 +78,7 @@ jobs:
       - name: Install Grafana Operator CRDs
         run: |
           kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
-          helm upgrade --install grafana-operator \
-            oci://ghcr.io/grafana/helm-charts/grafana-operator \
-            --version 5.24.0 \
-            --namespace grafana-operator \
-            --values deploy/operator-values.yaml
+          helm upgrade --install grafana-operator oci://ghcr.io/grafana/helm-charts/grafana-operator --version 5.24.0 --namespace grafana-operator --values deploy/operator-values.yaml
           kubectl wait --for=condition=Established crd/grafanas.grafana.integreatly.org --timeout=120s
 
       - name: Server-Side Dry-Run Manifests
