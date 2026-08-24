@@ -1,4 +1,4 @@
-# Grafana Admin Platform GitOps
+# Grafana Admin Platform (GitOps)
 
 Enterprise declarative GitOps management platform for **Grafana Cloud** utilizing **Argo CD** and the official **Grafana Operator (`v5.24.0`)**.
 
@@ -8,10 +8,10 @@ Enterprise declarative GitOps management platform for **Grafana Cloud** utilizin
 
 ```mermaid
 graph TD
-    Git[Git Repository: chart/values/*.yaml] -->|Sync| ArgoCD[Argo CD Application Controller]
-    ArgoCD -->|Deploy Helm Chart| Cluster[Kubernetes Kind Cluster]
-    Cluster -->|CRDs: Folders, Dashboards, SAs| Operator[Official Grafana Operator v5.24.0]
-    Operator -->|Reconcile Live State| GrafanaCloud[Grafana Cloud Instance: cosmicsatish.grafana.net]
+    Git["Git Repository (cosmicsatish/grafana-admin-platform)"] -->|Automated Sync| ArgoCD["Argo CD Controller"]
+    ArgoCD -->|Server-Side Apply| Cluster["Kubernetes (Kind / EKS / GKE)"]
+    Cluster -->|CRDs: Folders, SAs, Teams, Dashboards, Alerts| Operator["Official Grafana Operator v5.24.0"]
+    Operator -->|Reconcile REST API| GrafanaCloud["Grafana Cloud (cosmicsatish.grafana.net)"]
 ```
 
 ---
@@ -19,50 +19,91 @@ graph TD
 ## 📁 Repository Structure
 
 ```text
-├── chart/                              # Master Helm chart
+.
+├── chart/                              # Master Declarative Helm Chart
 │   ├── templates/                      # Standardized Kubernetes CRD templates
 │   │   ├── Grafana.yaml                # Target Grafana Cloud Instance CR
-│   │   ├── GrafanaFolder.yaml          # Nested Folders CRs (under Osttra)
-│   │   ├── GrafanaDashboard.yaml       # Grafana Operator Observability Dashboard
-│   │   ├── GrafanaServiceAccount.yaml  # Service Accounts & Dynamic 1-Yr Tokens
-│   │   └── _helpers.tpl                # Standardized label helpers
-│   └── values/                         # Pure Declarative Config (Source of Truth)
-│       ├── Team.yaml                   # 39 Teams & Azure AD Object ID Sync
-│       ├── GrafanaFolder.yaml          # Osttra Root + 41 Nested Folders & Permissions
+│   │   ├── GrafanaFolder.yaml          # Hierarchical Folders (Osttra + 41 Subfolders)
+│   │   ├── GrafanaServiceAccount.yaml  # Service Accounts (Least Privilege role: None)
+│   │   ├── Team.yaml                   # 39 Teams & Azure AD Group Mapping
+│   │   ├── TeamLBACRule.yaml           # Loki LBAC Stream Selectors
+│   │   ├── ResourcePermission.yaml     # Datasource & Resource Permissions
+│   │   ├── GrafanaDashboard.yaml       # Zero-Config Dashboard Glob Auto-Discovery
+│   │   ├── GrafanaAlertRuleGroup.yaml  # Zero-Config Alert Rule Group Glob Auto-Discovery
+│   │   └── _helpers.tpl                # Shared label & selector helpers
+│   │
+│   └── values/                         # Declarative Values (Single Source of Truth)
+│       ├── Team.yaml                   # 39 Teams & Role Definitions
+│       ├── GrafanaFolder.yaml          # 42 Nested Folders & Access Control Lists
 │       ├── GrafanaServiceAccount.yaml  # 19 SAs with Fine-Grained Fixed Roles
 │       ├── TeamLBACRule.yaml           # 25 Loki LBAC Stream Selectors
-│       └── ResourcePermission.yaml     # Datasource Query Access Rules
+│       └── ResourcePermission.yaml     # Datasource Permissions
+│
 ├── deploy/
+│   ├── alloy/                          # Grafana Alloy Telemetry Pipeline
+│   │   └── values.yaml                 # Scrapes Operator :9090 & Remote Writes to Prometheus
 │   ├── argocd/                         # Argo CD GitOps Declarations
-│   │   ├── application.yaml            # Argo CD Application
+│   │   ├── application.yaml            # Argo CD Application Definition
 │   │   └── project.yaml                # Argo CD AppProject
-│   ├── operator-values.yaml            # Grafana Operator Helm configuration
-│   └── install.sh                      # Cluster bootstrap script
-└── .github/workflows/
-    ├── validate.yaml                   # Ultra-fast CI validation (9-11s)
-    └── onboard.yaml                    # Automated team onboarding & safety checks
+│   ├── operator-values.yaml            # Official Grafana Operator Helm configuration
+│   └── install.sh                      # Cluster bootstrap and installer script
+│
+├── policy/
+│   └── security.rego                   # Open Policy Agent (OPA) Conftest guardrails
+│
+├── .github/workflows/
+│   ├── validate.yaml                   # CI Linting, OPA Policy, & Helm template validation
+│   ├── onboard.yaml                    # Automated team onboarding workflow
+│   └── drift-detection.yaml            # Continuous state reconciliation & drift detection
+│
+└── Makefile                            # Developer convenience tasks
 ```
 
 ---
 
-## 🚀 Getting Started & Argo CD Web UI
+## 🚀 Key Features
 
-### 1. Access the Argo CD Web UI
+### 1. Least-Privilege Service Accounts (`role: None`)
+All 19 service accounts are explicitly configured with `spec.role: "None"`, ensuring zero default `Viewer`/`Editor`/`Admin` permissions across the organization. Fine-grained access is granted strictly via fixed roles and folder permissions.
+
+### 2. Hierarchical Team Folders (`chart/values/GrafanaFolder.yaml`)
+Root folder `Osttra` manages 41 nested team subfolders with granular access control:
+- **Team Ownership**: Teams receive `Admin` and `Edit` permissions on their dedicated folder.
+- **Organization Viewers**: Default read-only visibility is preserved across organizational folders.
+
+### 3. Loki LBAC (Log-Based Access Control)
+Enforces multi-tenant log isolation on the `loki-lbac` datasource using stream selector rules defined in `chart/values/TeamLBACRule.yaml`.
+
+### 4. Zero-Config Dashboards & Alerts Auto-Discovery
+The Helm templates support zero-config file auto-discovery:
+* **To add a Dashboard**: Place any `.json` model into `chart/dashboards/<folder-name>/<dashboard-name>.json`.
+* **To add an Alert Rule Group**: Place any `.yaml` definition into `chart/alerts/<folder-name>/<rule-group-name>.yaml`.
+* **UI Editability**: Alerts are rendered with `spec.editable: true` and dashboards with `"editable": true` to allow frictionless in-browser editing.
+
+---
+
+## 🛠️ Developer & Operations Guide
+
+### 1. Local Validation
+Run all YAML syntax checks, OPA security policies, and Helm template linting locally:
+```bash
+make validate
+```
+
+### 2. Accessing Argo CD Web UI
+Forward the Argo CD server port to your local machine:
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
-- **URL**: Open **[https://localhost:8080](https://localhost:8080)** in your browser.
+- **URL**: https://localhost:8080
 - **Username**: `admin`
 - **Password**:
   ```bash
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
   ```
 
----
-
-## 🧪 Validations & CI Pipeline
-
-Run all linting, schema validation, and guardrails locally:
+### 3. Bootstrap Cluster Deployment
+To deploy the Grafana Operator and the Admin Platform chart into a new cluster:
 ```bash
-make validate
+./deploy/install.sh
 ```
