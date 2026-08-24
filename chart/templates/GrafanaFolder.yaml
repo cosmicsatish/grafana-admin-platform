@@ -5,13 +5,13 @@ kind: GrafanaFolder
 metadata:
   name: {{ .title | lower | replace " " "-" }}-folder
   labels:
-    dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
+    {{- include "grafana-admin-platform.matchLabels" $ | nindent 4 }}
     grafana-admin-platform: managed
     owner: {{ .owner | default "platform" }}
 spec:
   instanceSelector:
     matchLabels:
-      dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
+      {{- include "grafana-admin-platform.matchLabels" $ | nindent 6 }}
   uid: {{ .uid | quote }}
   title: {{ .title | quote }}
   {{- if .parentUid }}

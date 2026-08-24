@@ -5,7 +5,7 @@ kind: GrafanaManifest
 metadata:
   name: {{ .slug }}-team
   labels:
-    dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
+    {{- include "grafana-admin-platform.matchLabels" $ | nindent 4 }}
     grafana-admin-platform: managed
     owner: {{ .owner | default "platform" }}
   {{- if .roles }}
@@ -15,7 +15,7 @@ metadata:
 spec:
   instanceSelector:
     matchLabels:
-      dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
+      {{- include "grafana-admin-platform.matchLabels" $ | nindent 6 }}
   template:
     apiVersion: iam.grafana.app/v0alpha1
     kind: Team

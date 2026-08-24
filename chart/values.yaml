@@ -11,9 +11,8 @@
 grafana:
   enabled: true
   name: "grafanacloud-osttra"
-  namespace: "grafana-operator-configs"
   url: "https://cosmicsatish.grafana.net"
   secretName: "grafanacloud-credentials"
   secretKey: "GRAFANA_API_KEY"
-  instanceSelectorLabel: "dashboards"
-  instanceSelectorValue: "osttra"
+  matchLabels:
+    dashboards: "osttra"
