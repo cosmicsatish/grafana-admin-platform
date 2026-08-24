@@ -27,15 +27,16 @@ on:
           - service_account
           - lbac_rule
       name:
-        description: 'Name / Title (e.g. Payments, DBS Analytics, folder name, SA name)'
+        description: 'Name / Title (e.g. Payments Team, Payments Folder, payments-sa)'
         required: true
         type: string
       slug:
-        description: 'Identifier / Slug / UID (e.g. payments, folder-payments)'
-        required: true
+        description: 'Identifier / Slug / UID (e.g. payments, folder-payments) - auto-derived if blank'
+        required: false
+        default: ''
         type: string
       owner:
-        description: 'Owner Team (for folders, service accounts, or LBAC rules)'
+        description: 'Owner Team (e.g. platform, payments)'
         required: false
         type: string
       roles:
@@ -84,22 +85,32 @@ jobs:
           GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
           python - <<'PY'
-          import os, sys, re, yaml, json, urllib.request, ssl
+          import os, sys, re, yaml, json, urllib.request, urllib.parse, ssl
 
-          action = os.environ.get("ACTION", "add_or_update")
-          confirm_delete = os.environ.get("CONFIRM_DELETE", "")
-          res_type = os.environ.get("TYPE", "")
+          action = os.environ.get("ACTION", "add_or_update").strip().lower()
+          confirm_delete = os.environ.get("CONFIRM_DELETE", "").strip()
+          res_type = os.environ.get("TYPE", "").strip().lower()
           name = os.environ.get("NAME", "").strip()
           slug_raw = os.environ.get("SLUG", "").strip()
           owner = os.environ.get("OWNER", "").strip()
           roles_raw = os.environ.get("ROLES", "").strip()
           sync_groups_raw = os.environ.get("SYNC_GROUPS", "").strip()
           selector = os.environ.get("SELECTOR", "").strip()
-          grafana_token = os.environ.get("GRAFANA_API_KEY", "")
-          grafana_url = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net")
+          grafana_token = os.environ.get("GRAFANA_API_KEY", "").strip()
+          grafana_url = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net").strip()
 
-          # Normalize slug to RFC 1123 DNS-safe format (lowercase, replace spaces/symbols with hyphens)
-          slug = re.sub(r'[^a-z0-9-]', '-', slug_raw.lower()).strip('-') if slug_raw else re.sub(r'[^a-z0-9-]', '-', name.lower()).strip('-')
+          if not name:
+              print("❌ Error: Resource Name/Title cannot be empty.", file=sys.stderr)
+              sys.exit(1)
+
+          # Auto-derive and normalize slug to RFC 1123 format (lowercase alphanumeric and hyphens only)
+          if slug_raw:
+              slug = re.sub(r'[^a-z0-9-]', '-', slug_raw.lower()).strip('-')
+          else:
+              slug = re.sub(r'[^a-z0-9-]', '-', name.lower()).strip('-')
+
+          if not slug:
+              slug = "resource-" + re.sub(r'[^a-z0-9]', '', name.lower())
 
           roles = [r.strip() for r in roles_raw.split(",") if r.strip()]
           sync_groups = [s.strip() for s in sync_groups_raw.split(",") if s.strip()]
@@ -131,71 +142,102 @@ jobs:
                   with urllib.request.urlopen(req, context=ctx) as r:
                       return json.loads(r.read())
               except Exception as e:
-                  print(f"⚠️ Grafana API call ({method} {path}) notice: {e}")
+                  print(f"ℹ️ Grafana Cloud API ({method} {path}): {e}")
                   return None
 
+          # ==========================================
+          # REMOVE RESOURCE
+          # ==========================================
           if action == "remove":
               if confirm_delete != "DELETE":
                   print("❌ Safety Check Failed: You must type 'DELETE' in confirm_delete to remove resources.", file=sys.stderr)
                   sys.exit(1)
 
-              print(f"🗑️ Safety check passed. Removing {res_type} with slug/name: {slug} / {name}")
+              print(f"🗑️ Safety check passed. Removing {res_type}: '{name}' (slug: {slug})")
 
               if res_type == "team":
                   team_file = "chart/values/Team.yaml"
                   t_data = load_yaml(team_file)
-                  t_data["teams"] = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name") != name]
+                  t_data["teams"] = [
+                      t for t in t_data.get("teams", [])
+                      if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name", "").lower() != name.lower()
+                  ]
                   save_yaml(team_file, t_data)
 
-                  # Delete from Grafana Cloud if exists
+                  # Delete from Grafana Cloud via REST API
                   if grafana_token:
-                      teams = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
-                      for t in (teams.get("teams", []) if teams else []):
-                          if t.get("name") == name:
+                      teams_list = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
+                      for t in (teams_list.get("teams", []) if teams_list else []):
+                          if t.get("name", "").lower() == name.lower() or t.get("name", "").lower().replace(" ", "-") == slug:
                               grafana_api(f"/api/teams/{t['id']}", method="DELETE")
-                              print(f"🗑️ Deleted team '{name}' (ID: {t['id']}) from Grafana Cloud")
+                              print(f"🗑️ Deleted team '{t['name']}' (ID: {t['id']}) from Grafana Cloud")
 
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
                   if p_data.get("datasourcePermissions"):
                       p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", [])
+                          if a.get("team") != slug and a.get("team") != slug_raw
                       ]
                       save_yaml(perm_file, p_data)
+
+                  lbac_file = "chart/values/TeamLBACRule.yaml"
+                  l_data = load_yaml(lbac_file)
+                  l_data["lbacRules"] = [
+                      r for r in l_data.get("lbacRules", [])
+                      if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw
+                  ]
+                  save_yaml(lbac_file, l_data)
 
               elif res_type == "folder":
                   folder_file = "chart/values/GrafanaFolder.yaml"
                   f_data = load_yaml(folder_file)
-                  f_data["folders"] = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title") != name]
+                  f_data["folders"] = [
+                      f for f in f_data.get("folders", [])
+                      if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title", "").lower() != name.lower()
+                  ]
                   save_yaml(folder_file, f_data)
 
               elif res_type == "service_account":
                   sa_file = "chart/values/GrafanaServiceAccount.yaml"
                   s_data = load_yaml(sa_file)
-                  s_data["serviceAccounts"] = [s for s in s_data.get("serviceAccounts", []) if s.get("name") != name]
+                  s_data["serviceAccounts"] = [
+                      s for s in s_data.get("serviceAccounts", [])
+                      if s.get("name", "").lower() != name.lower() and s.get("name", "").lower().replace(" ", "-") != slug
+                  ]
                   save_yaml(sa_file, s_data)
 
               elif res_type == "lbac_rule":
                   lbac_file = "chart/values/TeamLBACRule.yaml"
                   l_data = load_yaml(lbac_file)
-                  l_data["lbacRules"] = [r for r in l_data.get("lbacRules", []) if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw]
+                  l_data["lbacRules"] = [
+                      r for r in l_data.get("lbacRules", [])
+                      if r.get("name") != slug and r.get("team") != slug and r.get("name") != slug_raw and r.get("team") != slug_raw
+                  ]
                   save_yaml(lbac_file, l_data)
 
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
                   if p_data.get("datasourcePermissions"):
                       p_data["datasourcePermissions"][0]["assignments"] = [
-                          a for a in p_data["datasourcePermissions"][0].get("assignments", []) if a.get("team") != slug and a.get("team") != slug_raw
+                          a for a in p_data["datasourcePermissions"][0].get("assignments", [])
+                          if a.get("team") != slug and a.get("team") != slug_raw
                       ]
                       save_yaml(perm_file, p_data)
 
+              print(f"✅ Successfully removed {res_type} '{name}'")
               sys.exit(0)
 
-          # Action: add_or_update
+          # ==========================================
+          # ADD OR UPDATE RESOURCE
+          # ==========================================
           if res_type == "team":
               team_file = "chart/values/Team.yaml"
               t_data = load_yaml(team_file)
-              teams = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("slug") != slug_raw]
+              teams = [
+                  t for t in t_data.get("teams", [])
+                  if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name", "").lower() != name.lower()
+              ]
               team_entry = {
                   "name": name,
                   "slug": slug,
@@ -210,25 +252,25 @@ jobs:
               t_data["teams"] = teams
               save_yaml(team_file, t_data)
 
-              # Create/Sync in Grafana Cloud via REST API
+              # Create or Update Team in Grafana Cloud via REST API
               if grafana_token:
                   search_res = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
                   existing_teams = search_res.get("teams", []) if search_res else []
-                  matched = next((t for t in existing_teams if t.get("name") == name), None)
+                  matched = next((t for t in existing_teams if t.get("name", "").lower() == name.lower()), None)
                   if not matched:
                       create_res = grafana_api("/api/teams", data={"name": name}, method="POST")
                       team_id = create_res.get("teamId") if create_res else None
                       print(f"✅ Created team '{name}' in Grafana Cloud (ID: {team_id})")
                   else:
                       team_id = matched.get("id")
-                      print(f"ℹ️ Team '{name}' already exists in Grafana Cloud (ID: {team_id})")
+                      print(f"ℹ️ Team '{name}' exists in Grafana Cloud (ID: {team_id})")
 
                   if team_id and roles:
                       all_roles = grafana_api("/api/access-control/roles") or []
                       role_uids = [r["uid"] for r in all_roles if r.get("name") in roles]
                       if role_uids:
                           grafana_api(f"/api/access-control/teams/{team_id}/roles", data={"roleUids": role_uids}, method="PUT")
-                          print(f"✅ Assigned RBAC roles {roles} to team '{name}' in Grafana Cloud")
+                          print(f"✅ Assigned RBAC roles {roles} to team '{name}'")
 
                   if team_id and sync_groups:
                       for sg in sync_groups:
@@ -260,7 +302,10 @@ jobs:
               owner_team = owner if owner else "platform"
               folder_file = "chart/values/GrafanaFolder.yaml"
               f_data = load_yaml(folder_file)
-              folders = [f for f in f_data.get("folders", []) if f.get("uid") != slug and f.get("uid") != slug_raw]
+              folders = [
+                  f for f in f_data.get("folders", [])
+                  if f.get("uid") != slug and f.get("uid") != slug_raw and f.get("title", "").lower() != name.lower()
+              ]
               folders.append({
                   "title": name,
                   "uid": slug,
@@ -277,7 +322,10 @@ jobs:
           elif res_type == "service_account":
               sa_file = "chart/values/GrafanaServiceAccount.yaml"
               s_data = load_yaml(sa_file)
-              sas = [s for s in s_data.get("serviceAccounts", []) if s.get("name") != name]
+              sas = [
+                  s for s in s_data.get("serviceAccounts", [])
+                  if s.get("name", "").lower() != name.lower() and s.get("name", "").lower().replace(" ", "-") != slug
+              ]
               sa_entry = {
                   "name": name,
                   "role": "None",
