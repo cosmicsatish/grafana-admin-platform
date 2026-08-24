@@ -1,12 +1,12 @@
 # Grafana Administration Platform
 
-Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azure AD (Entra ID) Group Sync**, **Parent/Child Folders & Permissions**, **Fine-Grained Fixed RBAC Roles**, **Loki Log-Based Access Control (LBAC)**, **Service Accounts**, and **Automated Self-Service Resource Onboarding** via **Argo CD**, **Helm**, and the **Grafana Operator** (with zero custom scripts).
+Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azure AD (Entra ID) Group Sync**, **Parent/Child Folders & Permissions**, **Fine-Grained Fixed RBAC Roles**, **Loki Log-Based Access Control (LBAC)**, **Service Accounts**, and **Automated Self-Service Resource Onboarding** via **Flux CD**, **Helm**, and the **Grafana Operator** (with zero custom scripts).
 
 ---
 
 ## 1. Core GitOps Architecture
 
-In pure GitOps, GitHub Actions validates pull requests and commits in seconds, while **Argo CD** running inside your Kubernetes cluster synchronizes the desired state to Grafana Cloud:
+In pure GitOps, GitHub Actions validates pull requests and commits in seconds, while **Flux CD** running inside your Kubernetes cluster synchronizes the desired state to Grafana Cloud:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -29,10 +29,13 @@ In pure GitOps, GitHub Actions validates pull requests and commits in seconds, w
 │              https://github.com/cosmicsatish/grafana-admin-platform         │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼ (Argo CD In-Cluster Automated Sync)
+                                       ▼ (Flux CD In-Cluster Automated Sync)
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       ARGO CD / KUBERNETES CLUSTER                          │
-│          Applies Native Custom Resources via Grafana Operator v5.24.0       │
+│                       FLUX CD / KUBERNETES CLUSTER                          │
+│   - Namespace: grafana-operator-configs                                     │
+│   - HelmRelease: grafana-admin-platform (via GitRepository source)          │
+│   - Instance: grafanacloud-osttra (Selector: dashboards: osttra)            │
+│   - Secret: grafanacloud-credentials (Key: GRAFANA_API_KEY)                 │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
                                        ▼ (Reconciles against Grafana API)
@@ -57,7 +60,7 @@ To onboard, update, or remove resources without manually editing YAML files:
 2. Click **Run workflow**.
 3. Choose `action` (`add_or_update` or `remove`) and `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
 4. Fill in the details. *(Note: If selecting `remove`, you must type `DELETE` in the confirmation box for safety).*
-5. The workflow updates the values file using native `yq`, validates security policies, commits to `main`, and triggers Argo CD!
+5. The workflow updates the values file using native `yq`, validates security policies, commits to `main`, and triggers Flux CD synchronization!
 
 ---
 
@@ -76,7 +79,7 @@ To onboard, update, or remove resources without manually editing YAML files:
 │   │   └── ResourcePermission.yaml     # Scoped loki-lbac permissions
 │   └── templates/                      # Pure native templates
 │       ├── _helpers.tpl
-│       ├── Grafana.yaml                # External Grafana instance CR
+│       ├── Grafana.yaml                # External Grafana instance CR (grafanacloud-osttra)
 │       ├── GrafanaDashboard.yaml       # Official Operator Dashboard CR (ID: 22785)
 │       ├── GrafanaFolder.yaml          # GrafanaFolder CRs (with parentFolderUID)
 │       ├── GrafanaServiceAccount.yaml  # GrafanaServiceAccount CRs
@@ -86,10 +89,13 @@ To onboard, update, or remove resources without manually editing YAML files:
 ├── policy/
 │   └── security.rego                   # Conftest / OPA security & compliance guardrails
 ├── deploy/
-│   ├── install.sh                      # One-click cluster bootstrap script (Kind + Argo CD)
+│   ├── install.sh                      # Cluster bootstrap script (Grafana Operator + HelmRelease)
 │   ├── operator-values.yaml            # Grafana Operator Helm configuration
-│   └── argocd/
-│       └── application.yaml            # Argo CD Application manifest
+│   └── flux/
+│       ├── kustomization.yaml          # Flux Kustomization
+│       ├── helm-release.yaml           # Flux HelmRelease applying the chart
+│       └── sources/
+│           └── git-repository.yaml     # Flux GitRepository source
 ├── .github/
 │   ├── dependabot.yml                  # Operator & GitHub Actions upgrade watch
 │   └── workflows/
@@ -102,7 +108,7 @@ To onboard, update, or remove resources without manually editing YAML files:
 
 ---
 
-## 4. Local Commands
+## 4. Local & Cluster Commands
 
 ```bash
 # Validate YAML syntax and lint Helm chart against all values files:
@@ -111,6 +117,6 @@ make validate
 # Render final Kubernetes manifests to stdout:
 make render
 
-# Local cluster bootstrap:
+# Deploy / Bootstrap to cluster:
 make install
 ```

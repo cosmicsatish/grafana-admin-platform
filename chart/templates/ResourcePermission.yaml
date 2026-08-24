@@ -5,12 +5,13 @@ kind: GrafanaManifest
 metadata:
   name: {{ .name }}
   labels:
+    dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
     grafana-admin-platform: managed
     owner: {{ .owner | default "platform" }}
 spec:
   instanceSelector:
     matchLabels:
-      grafana-admin-platform: managed
+      dashboards: {{ $.Values.grafana.instanceSelectorValue | default "osttra" }}
   template:
     apiVersion: iam.grafana.app/v0alpha1
     kind: ResourcePermission

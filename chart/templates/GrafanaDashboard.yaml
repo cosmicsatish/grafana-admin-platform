@@ -3,11 +3,12 @@ kind: GrafanaDashboard
 metadata:
   name: grafana-operator-dashboard
   labels:
+    dashboards: {{ .Values.grafana.instanceSelectorValue | default "osttra" }}
     {{- include "grafana-admin-platform.labels" . | nindent 4 }}
 spec:
   instanceSelector:
     matchLabels:
-      grafana-admin-platform: managed
+      dashboards: {{ .Values.grafana.instanceSelectorValue | default "osttra" }}
   grafanaCom:
     id: 22785
   folderUID: "osttra"

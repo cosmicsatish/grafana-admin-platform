@@ -1,0 +1,31 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana-admin-platform
+  namespace: grafana-operator-configs
+spec:
+  releaseName: grafana-admin-platform
+  interval: 5m
+  chart:
+    spec:
+      chart: ./chart
+      sourceRef:
+        kind: GitRepository
+        name: grafana-admin-platform
+        namespace: flux-system
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    grafana:
+      enabled: true
+      name: "grafanacloud-osttra"
+      url: "https://cosmicsatish.grafana.net"
+      secretName: "grafanacloud-credentials"
+      secretKey: "GRAFANA_API_KEY"
+      instanceSelectorLabel: "dashboards"
+      instanceSelectorValue: "osttra"
