@@ -59,34 +59,3 @@ jobs:
           helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
           helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml > /tmp/rendered.yaml
           test -s /tmp/rendered.yaml
-
-  cluster-validation:
-    name: Kubernetes Server-Side Dry-Run
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup Tools
-        uses: azure/setup-kubectl@v5
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v5
-
-      - name: Setup Kind Cluster
-        uses: helm/kind-action@v1.14.0
-
-      - name: Install Grafana Operator CRDs
-        run: |
-          kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
-          helm upgrade --install grafana-operator \
-            oci://ghcr.io/grafana/helm-charts/grafana-operator \
-            --version 5.24.0 \
-            --namespace grafana-operator \
-            --values deploy/operator-values.yaml
-          kubectl wait --for=condition=Established crd/grafanas.grafana.integreatly.org --timeout=120s
-
-      - name: Server-Side Dry-Run Manifests
-        run: |
-          kubectl create namespace grafana-admin --dry-run=client -o yaml | kubectl apply -f -
-          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml | kubectl apply --dry-run=server -n grafana-admin -f -

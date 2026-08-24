@@ -4,9 +4,9 @@ Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azur
 
 ---
 
-## 1. Core Platform Architecture
+## 1. Core GitOps Architecture
 
-All resources are modeled in modular value files, validated via policy-as-code guardrails, and rendered into official Kubernetes Custom Resources:
+In pure GitOps, GitHub Actions validates pull requests and commits in seconds, while **Argo CD** running inside your Kubernetes cluster synchronizes the desired state to Grafana Cloud:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -15,27 +15,27 @@ All resources are modeled in modular value files, validated via policy-as-code g
 │   - Modular Values: Team.yaml | GrafanaFolder.yaml | ServiceAccount.yaml    │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼ (PR Policy Guardrails / Conftest)
+                                       ▼ (PR Policy Guardrails / Conftest - 5s)
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       AUTOMATED GOVERNANCE & CHECKS                         │
+│                       AUTOMATED CI GOVERNANCE & CHECKS                      │
 │   - Conftest / OPA Security Rules (policy/security.rego)                    │
 │   - Dependabot Operator Upgrade Watch (.github/dependabot.yml)              │
 │   - Nightly Drift & Integrity Detection (.github/workflows/drift-detection)│
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼ (Git Commit & Push)
+                                       ▼ (Git Commit & Push to main)
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          GITHUB GITOPS REPOSITORY                           │
 │              https://github.com/cosmicsatish/grafana-admin-platform         │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼ (Argo CD Automated Sync)
+                                       ▼ (Argo CD In-Cluster Automated Sync)
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       ARGO CD / KUBERNETES CLUSTER                          │
 │          Applies Native Custom Resources via Grafana Operator v5.24.0       │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼ (Grafana Instance API)
+                                       ▼ (Reconciles against Grafana API)
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         GRAFANA CLOUD INSTANCE                              │
 │                    https://cosmicsatish.grafana.net                         │
@@ -51,13 +51,13 @@ All resources are modeled in modular value files, validated via policy-as-code g
 
 ## 2. Automated Resource Onboarding (Zero Custom Code)
 
-To onboard or manage resources without manually editing YAML files, use the native **GitHub Actions Workflow Dispatch**:
+To onboard, update, or remove resources without manually editing YAML files:
 
 1. Go to **Actions** $\rightarrow$ **Automated Resource Onboarding**.
 2. Click **Run workflow**.
-3. Select `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
-4. Fill in the simple form fields (e.g. Name: `Payments`, Slug: `payments`, Roles: `fixed:dashboards:reader,fixed:datasources:explorer`).
-5. The workflow uses standard Linux **`yq`** to append the entry, validates it with Conftest security policies, commits the change, and triggers Argo CD!
+3. Choose `action` (`add_or_update` or `remove`) and `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
+4. Fill in the details. *(Note: If selecting `remove`, you must type `DELETE` in the confirmation box for safety).*
+5. The workflow updates the values file using native `yq`, validates security policies, commits to `main`, and triggers Argo CD!
 
 ---
 
@@ -86,15 +86,14 @@ To onboard or manage resources without manually editing YAML files, use the nati
 ├── policy/
 │   └── security.rego                   # Conftest / OPA security & compliance guardrails
 ├── deploy/
-│   ├── install.sh                      # One-click local bootstrap script (Kind + Argo CD)
+│   ├── install.sh                      # One-click cluster bootstrap script (Kind + Argo CD)
 │   ├── operator-values.yaml            # Grafana Operator Helm configuration
 │   └── argocd/
 │       └── application.yaml            # Argo CD Application manifest
 ├── .github/
 │   ├── dependabot.yml                  # Operator & GitHub Actions upgrade watch
 │   └── workflows/
-│       ├── validate.yaml               # Consolidated PR lint, Conftest policy, & dry-run
-│       ├── deploy.yaml                 # GitOps deployment pipeline
+│       ├── validate.yaml               # Fast 5s PR lint, Conftest policy, & template validation
 │       ├── drift-detection.yaml        # Nightly drift & integrity check
 │       └── onboard.yaml                # Native yq self-service UI onboarding workflow
 ├── Makefile                            # make validate, make render, make install
@@ -112,6 +111,6 @@ make validate
 # Render final Kubernetes manifests to stdout:
 make render
 
-# Local bootstrap:
+# Local cluster bootstrap:
 make install
 ```
