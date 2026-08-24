@@ -10,9 +10,10 @@ spec:
     name: "loki-lbac"
     type: "loki"
     access: "proxy"
+    url: "https://logs-prod-006.grafana.net"
     uid: "ffvme66npet4wf"
     isDefault: false
+    editable: true
     jsonData:
       httpHeaderName1: "X-Scope-OrgID"
       maxLines: 5000
-    readOnly: false
