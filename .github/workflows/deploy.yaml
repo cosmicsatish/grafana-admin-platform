@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   deploy:
+    name: Bootstrap & Deploy Cluster
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,31 +27,17 @@ jobs:
         with:
           cluster_name: grafana-admin-gitops
 
-      - name: Deploy Operator & Apply Declarative Chart
+      - name: Deploy Operator & Declarative Platform
         env:
           GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
           GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${GRAFANA_URL:-}" || -z "${GRAFANA_TOKEN:-}" ]]; then
-            echo "::warning ::GRAFANA_URL or GRAFANA_TOKEN secret is not configured. Running dry-run validation."
-            kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
-            helm upgrade --install grafana-operator \
-              oci://ghcr.io/grafana/helm-charts/grafana-operator \
-              --version 5.24.0 \
-              --namespace grafana-operator \
-              --values deploy/operator-values.yaml
-            kubectl create namespace grafana-admin --dry-run=client -o yaml | kubectl apply -f -
-            helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml | kubectl apply --dry-run=server -n grafana-admin -f -
-            exit 0
-          fi
-
           ./deploy/install.sh
 
       - name: Verify Reconciliation & Display Status
-        if: env.GRAFANA_URL != '' && env.GRAFANA_TOKEN != ''
         run: |
           echo "Waiting for Grafana Operator reconciliation..."
           kubectl wait --for=condition=GrafanaReady grafana/grafana -n grafana-admin --timeout=180s || true
           echo "=== Managed Resources Status ==="
-          kubectl get grafanas,grafanafolders,grafanaserviceaccounts,grafanadatasources,grafanadashboards,grafanamanifests,grafanacontactpoints -n grafana-admin -o wide
+          kubectl get grafanas,grafanafolders,grafanaserviceaccounts,grafanadatasources,grafanadashboards,grafanamanifests -n grafana-admin -o wide

@@ -1,345 +1,307 @@
 teams:
-  - name: SRE
-    slug: sre
-    syncGroups:
-      - "a77663ba-4475-4750-84a1-030a5f8ee0aa" # APP-GrafanaCloud-SRE
-    roles:
-      - fixed:alerting:admin
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-      - plugins:grafana-incident-app:incident-access
-      - plugins:grafana-kowalski-app:frontend-observability-viewer
-      - plugins:grafana-ml-app:ml-viewer
-      - plugins:grafana-synthetic-monitoring-app:reader
-      - plugins:grafana-synthetic-monitoring-app:alerts-reader
-      - plugins:grafana-synthetic-monitoring-app:checks-reader
-      - plugins:grafana-synthetic-monitoring-app:checks-writer
-      - plugins:grafana-synthetic-monitoring-app:probes-reader
-      - plugins:k6-app:editor
-      - plugins:k6-app:reader
-
-  - name: DBS Leads
-    slug: dbs-leads
-    syncGroups:
-      - "91933de0-6820-4fbd-9948-821981bbf6e7" # APP-github-dbs-leads
-    roles:
-      - fixed:datasources:explorer
-      - fixed:dashboards:reader
-      - fixed:dashboards:writer
-
-  - name: DBS Contributors
-    slug: dbs-contributors
-    syncGroups:
-      - "1048c095-ee65-4132-bcb8-c294c5ba1180" # APP-github-dbs-contributors
-    roles:
-      - fixed:plugins.app:reader
-      - fixed:datasources:explorer
-      - fixed:library.panels:reader
-
-  - name: TOC
-    slug: toc
-    email: traiana-noc@osttra.com
-    syncGroups:
-      - "e0456184-7a0e-436d-ba46-0b1a134a66e6" # APP-GrafanaCloud-TOC-Users
-    roles:
-      - fixed:reports:reader
-      - fixed:alerting:admin
-      - fixed:datasources:explorer
-      - fixed:dashboards:creator
-      - fixed:dashboards:reader
-      - fixed:dashboards:writer
-      - fixed:folders:creator
-      - fixed:folders:reader
-
-  - name: Admins
-    slug: admins
-    syncGroups:
-      - "343133ba-f28b-4fab-95a0-55fc56391429" # APP-GrafanaCloud-Admins
-    roles:
-      - fixed:admin
-
-  - name: All viewers
-    slug: all-viewers
-    syncGroups:
-      - "7cbbe835-1886-4f4c-b17b-fe7d5dbcc0e5" # APP-GrafanaCloud-Viewer
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-      - fixed:folders:reader
-
-  - name: Application Support
-    slug: application-support
-    syncGroups:
-      - "111c1d8c-5290-4820-b4df-834c89a74cbb" # APP-GrafanaCloud-ApplicationSupport
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Cyber Security Team
-    slug: cyber-security-team
-    syncGroups:
-      - "aae130ec-fb9d-4e92-9594-5264b38d722d" # APP-GrafanaCloud-CyberSecurity
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Dashboarding and Alerting
-    slug: dashboarding-and-alerting
-    syncGroups:
-      - "77bb500c-7833-4f9e-9d22-263a232f05a1" # APP-GrafanaCloud-Dashboarding-and-Alerting
-    roles:
-      - fixed:alerting:admin
-      - fixed:alerting.rules:reader
-      - fixed:alerting.rules:writer
-      - fixed:alerting.notifications:reader
-      - fixed:alerting.notifications:writer
-      - fixed:alerting.receivers:reader
-      - fixed:alerting.receivers:creator
-      - fixed:alerting.receivers:writer
-      - fixed:alerting.templates:reader
-      - fixed:alerting.routes:reader
-      - fixed:dashboards:creator
-      - fixed:dashboards:reader
-      - fixed:dashboards:writer
-      - fixed:datasources:explorer
-      - fixed:library.panels:reader
-
-  - name: Create Reports
-    slug: create-reports
-    syncGroups:
-      - "ed72c4d2-7df2-4b2a-b1af-54d75f075cf0" # APP-GrafanaCloud-CreateReports-Users
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-      - fixed:reports:writer
-      - fixed:reports:reader
-
-  - name: database readonly
-    slug: database-readonly
-    syncGroups:
-      - "d1fa8fec-1ca1-455b-b9d9-04a60c70d4db" # APP-GrafanaCloud-DBA-Readonly
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Editors
-    slug: editors
-    syncGroups:
-      - "af19ce77-fc29-4113-827c-3f4fa7fa3f99" # APP-GrafanaCloud-Editors
-    roles:
-      - fixed:dashboards:writer
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: euc
-    slug: euc
-    syncGroups:
-      - "8aa9ee10-a4a9-450f-bb7c-2b63529a6e13" # APP-GrafanaCloud-euc
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: fortimail
-    slug: fortimail
-    syncGroups:
-      - "8917ff7a-fb8f-459f-9902-80bd1307b55c" # APP-GrafanaCloud-Fortimail
-    roles:
-      - fixed:datasources:explorer
-
-  - name: GrafanaAdmin
-    slug: grafanaadmin
-    syncGroups:
-      - "d79a6136-1e64-42f8-b36e-d06900dd8c34" # APP-GrafanaCloud-GrafanaAdmin
-    roles:
-      - fixed:admin
-
-  - name: group admins
-    slug: group-admins
-    syncGroups:
-      - "5e638c4b-c743-469b-980b-22db9c6d4ba4" # APP-GrafanaCloud-GroupAdmin
-    roles:
-      - fixed:admin
-
-  - name: InfoSec
-    slug: infosec
-    syncGroups:
-      - "6bc65ff0-e14b-4861-ad77-3ee8b4eb1583" # APP-GrafanaCloud-InfoSec
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: jigsaw-monitoring
-    slug: jigsaw-monitoring
-    syncGroups:
-      - "e30a074a-6db5-43cf-9b5c-cb665dadaffb" # APP-GrafanaCloud-jigsaw-monitoring-access
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Network
-    slug: network
-    syncGroups:
-      - "d0b3b4aa-7132-4752-9442-70b13cf106b0" # APP-GrafanaCloud-Network
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: NFT Team
-    slug: nft-team
-    syncGroups:
-      - "56930fcb-a7eb-410d-b2b7-a365bb511993" # APP-GrafanaCloud-NFT
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: operation-automation
-    slug: operation-automation
-    syncGroups:
-      - "d6a12ee2-a270-4f11-9fa5-025531fa4a2a" # APP-GrafanaCloud-OperationsAutomation
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: optapi
-    slug: optapi
-    syncGroups:
-      - "0d803051-8320-4aae-935f-286db952d40f" # APP-GrafanaCloud-OptAPI-Users
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: pengraven
-    slug: pengraven
-    syncGroups:
-      - "0ea0e599-4d64-4a47-a89c-ee1bf69be090" # APP-GrafanaCloud-Pengraven
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Private Cloud
-    slug: private-cloud
-    syncGroups:
-      - "c8602e43-5647-4074-8116-ff77c8847e7c" # APP-GrafanaCloud-PrivateCloud
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Product Management
-    slug: product-management
-    syncGroups:
-      - "025e1bb3-057d-419b-a0ca-c87ff9e47fb6" # APP-GrafanaCloud-ProductManagement
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Reset
-    slug: reset
-    syncGroups:
-      - "a876b5d9-db3f-426c-9dd6-928cc53eec08" # APP-GrafanaCloud-Reset
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: sys admins linux
-    slug: sys-admins-linux
-    syncGroups:
-      - "ca81db7f-5374-4b53-90d2-e5658e3cb9cb" # APP-GrafanaCloud-SysAdminsLinux
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: sys admins storage
-    slug: sys-admins-storage
-    syncGroups:
-      - "ed9b867c-65bc-4467-937b-99c55b119b91" # APP-GrafanaCloud-SysAdminsStorage
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: sys admins windows
-    slug: sys-admins-windows
-    syncGroups:
-      - "69c0d1eb-e10c-4c6e-b353-c40d12e96472" # APP-GrafanaCloud-SysAdminsWindows
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: traiana-connectivity-dev
-    slug: traiana-connectivity-dev
-    syncGroups:
-      - "cc8684ad-d538-4e89-9430-80be4061e895" # APP-GrafanaCloud-Traiana-Connectivity-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: traiana-credit-dev
-    slug: traiana-credit-dev
-    syncGroups:
-      - "9553f191-4468-450f-a39c-851ba6d7296b" # APP-GrafanaCloud-Traiana-Credit-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: Traiana CSM
-    slug: traiana-csm
-    syncGroups:
-      - "e39f88c8-7fba-4b47-ab8c-dd75c2e17627" # APP-GrafanaCloud-TraianaCSM
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: traiana-fx-dev
-    slug: traiana-fx-dev
-    syncGroups:
-      - "6e9bf1f2-777c-473d-82d2-8b4e7fe22c7b" # APP-GrafanaCloud-Traiana-FX-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triBalance
-    slug: tribalance
-    syncGroups:
-      - "a5a73041-945a-4cb7-a5ec-080bf595f9c4" # APP-GrafanaCloud-triBalance-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triCalculate
-    slug: tricalculate
-    syncGroups:
-      - "d59d4350-13f5-460d-a36c-947b0e8c7c94" # APP-GrafanaCloud-triCalculate-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triQA
-    slug: triqa
-    syncGroups:
-      - "aa00b61f-bd87-49b3-854f-140e8ac322de" # APP-GrafanaCloud-triQA-Dev-Users
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triReduce
-    slug: trireduce
-    syncGroups:
-      - "e9c5b616-e555-4682-9657-3f3503cbca13" # APP-GrafanaCloud-triReduce-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triResolve-core
-    slug: triresolve-core
-    syncGroups:
-      - "dbca9d54-1502-475c-8973-bf0f24237dc9" # APP-GrafanaCloud-triResolve-Core-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
-
-  - name: triResolve-margin
-    slug: triresolve-margin
-    syncGroups:
-      - "c32c86f7-5bb8-4228-a400-b6f120e3b6e8" # APP-GrafanaCloud-triResolve-Margin-Dev
-    roles:
-      - fixed:dashboards:reader
-      - fixed:datasources:explorer
+- name: SRE
+  slug: sre
+  syncGroups:
+  - a77663ba-4475-4750-84a1-030a5f8ee0aa
+  roles:
+  - fixed:alerting:admin
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+  - plugins:grafana-incident-app:incident-access
+  - plugins:grafana-kowalski-app:frontend-observability-viewer
+  - plugins:grafana-ml-app:ml-viewer
+  - plugins:grafana-synthetic-monitoring-app:reader
+  - plugins:grafana-synthetic-monitoring-app:alerts-reader
+  - plugins:grafana-synthetic-monitoring-app:checks-reader
+  - plugins:grafana-synthetic-monitoring-app:checks-writer
+  - plugins:grafana-synthetic-monitoring-app:probes-reader
+  - plugins:k6-app:editor
+  - plugins:k6-app:reader
+- name: DBS Leads
+  slug: dbs-leads
+  syncGroups:
+  - 91933de0-6820-4fbd-9948-821981bbf6e7
+  roles:
+  - fixed:datasources:explorer
+  - fixed:dashboards:reader
+  - fixed:dashboards:writer
+- name: DBS Contributors
+  slug: dbs-contributors
+  syncGroups:
+  - 1048c095-ee65-4132-bcb8-c294c5ba1180
+  roles:
+  - fixed:plugins.app:reader
+  - fixed:datasources:explorer
+  - fixed:library.panels:reader
+- name: TOC
+  slug: toc
+  email: traiana-noc@osttra.com
+  syncGroups:
+  - e0456184-7a0e-436d-ba46-0b1a134a66e6
+  roles:
+  - fixed:reports:reader
+  - fixed:alerting:admin
+  - fixed:datasources:explorer
+  - fixed:dashboards:creator
+  - fixed:dashboards:reader
+  - fixed:dashboards:writer
+  - fixed:folders:creator
+  - fixed:folders:reader
+- name: Admins
+  slug: admins
+  syncGroups:
+  - 343133ba-f28b-4fab-95a0-55fc56391429
+  roles:
+  - fixed:admin
+- name: All viewers
+  slug: all-viewers
+  syncGroups:
+  - 7cbbe835-1886-4f4c-b17b-fe7d5dbcc0e5
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+  - fixed:folders:reader
+- name: Application Support
+  slug: application-support
+  syncGroups:
+  - 111c1d8c-5290-4820-b4df-834c89a74cbb
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Cyber Security Team
+  slug: cyber-security-team
+  syncGroups:
+  - aae130ec-fb9d-4e92-9594-5264b38d722d
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Dashboarding and Alerting
+  slug: dashboarding-and-alerting
+  syncGroups:
+  - 77bb500c-7833-4f9e-9d22-263a232f05a1
+  roles:
+  - fixed:alerting:admin
+  - fixed:alerting.rules:reader
+  - fixed:alerting.rules:writer
+  - fixed:alerting.notifications:reader
+  - fixed:alerting.notifications:writer
+  - fixed:alerting.receivers:reader
+  - fixed:alerting.receivers:creator
+  - fixed:alerting.receivers:writer
+  - fixed:alerting.templates:reader
+  - fixed:alerting.routes:reader
+  - fixed:dashboards:creator
+  - fixed:dashboards:reader
+  - fixed:dashboards:writer
+  - fixed:datasources:explorer
+  - fixed:library.panels:reader
+- name: Create Reports
+  slug: create-reports
+  syncGroups:
+  - ed72c4d2-7df2-4b2a-b1af-54d75f075cf0
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+  - fixed:reports:writer
+  - fixed:reports:reader
+- name: database readonly
+  slug: database-readonly
+  syncGroups:
+  - d1fa8fec-1ca1-455b-b9d9-04a60c70d4db
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Editors
+  slug: editors
+  syncGroups:
+  - af19ce77-fc29-4113-827c-3f4fa7fa3f99
+  roles:
+  - fixed:dashboards:writer
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: euc
+  slug: euc
+  syncGroups:
+  - 8aa9ee10-a4a9-450f-bb7c-2b63529a6e13
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: fortimail
+  slug: fortimail
+  syncGroups:
+  - 8917ff7a-fb8f-459f-9902-80bd1307b55c
+  roles:
+  - fixed:datasources:explorer
+- name: GrafanaAdmin
+  slug: grafanaadmin
+  syncGroups:
+  - d79a6136-1e64-42f8-b36e-d06900dd8c34
+  roles:
+  - fixed:admin
+- name: group admins
+  slug: group-admins
+  syncGroups:
+  - 5e638c4b-c743-469b-980b-22db9c6d4ba4
+  roles:
+  - fixed:admin
+- name: InfoSec
+  slug: infosec
+  syncGroups:
+  - 6bc65ff0-e14b-4861-ad77-3ee8b4eb1583
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: jigsaw-monitoring
+  slug: jigsaw-monitoring
+  syncGroups:
+  - e30a074a-6db5-43cf-9b5c-cb665dadaffb
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Network
+  slug: network
+  syncGroups:
+  - d0b3b4aa-7132-4752-9442-70b13cf106b0
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: NFT Team
+  slug: nft-team
+  syncGroups:
+  - 56930fcb-a7eb-410d-b2b7-a365bb511993
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: operation-automation
+  slug: operation-automation
+  syncGroups:
+  - d6a12ee2-a270-4f11-9fa5-025531fa4a2a
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: optapi
+  slug: optapi
+  syncGroups:
+  - 0d803051-8320-4aae-935f-286db952d40f
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: pengraven
+  slug: pengraven
+  syncGroups:
+  - 0ea0e599-4d64-4a47-a89c-ee1bf69be090
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Private Cloud
+  slug: private-cloud
+  syncGroups:
+  - c8602e43-5647-4074-8116-ff77c8847e7c
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Product Management
+  slug: product-management
+  syncGroups:
+  - 025e1bb3-057d-419b-a0ca-c87ff9e47fb6
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Reset
+  slug: reset
+  syncGroups:
+  - a876b5d9-db3f-426c-9dd6-928cc53eec08
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: sys admins linux
+  slug: sys-admins-linux
+  syncGroups:
+  - ca81db7f-5374-4b53-90d2-e5658e3cb9cb
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: sys admins storage
+  slug: sys-admins-storage
+  syncGroups:
+  - ed9b867c-65bc-4467-937b-99c55b119b91
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: sys admins windows
+  slug: sys-admins-windows
+  syncGroups:
+  - 69c0d1eb-e10c-4c6e-b353-c40d12e96472
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: traiana-connectivity-dev
+  slug: traiana-connectivity-dev
+  syncGroups:
+  - cc8684ad-d538-4e89-9430-80be4061e895
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: traiana-credit-dev
+  slug: traiana-credit-dev
+  syncGroups:
+  - 9553f191-4468-450f-a39c-851ba6d7296b
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: Traiana CSM
+  slug: traiana-csm
+  syncGroups:
+  - e39f88c8-7fba-4b47-ab8c-dd75c2e17627
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: traiana-fx-dev
+  slug: traiana-fx-dev
+  syncGroups:
+  - 6e9bf1f2-777c-473d-82d2-8b4e7fe22c7b
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triBalance
+  slug: tribalance
+  syncGroups:
+  - a5a73041-945a-4cb7-a5ec-080bf595f9c4
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triCalculate
+  slug: tricalculate
+  syncGroups:
+  - d59d4350-13f5-460d-a36c-947b0e8c7c94
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triQA
+  slug: triqa
+  syncGroups:
+  - aa00b61f-bd87-49b3-854f-140e8ac322de
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triReduce
+  slug: trireduce
+  syncGroups:
+  - e9c5b616-e555-4682-9657-3f3503cbca13
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triResolve-core
+  slug: triresolve-core
+  syncGroups:
+  - dbca9d54-1502-475c-8973-bf0f24237dc9
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer
+- name: triResolve-margin
+  slug: triresolve-margin
+  syncGroups:
+  - c32c86f7-5bb8-4228-a400-b6f120e3b6e8
+  roles:
+  - fixed:dashboards:reader
+  - fixed:datasources:explorer

@@ -1,6 +1,6 @@
 # Grafana Administration Platform
 
-Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azure AD (Entra ID) Group Sync**, **Parent/Child Folders & Permissions**, **Fine-Grained Fixed RBAC Roles**, **Loki Log-Based Access Control (LBAC)**, **Service Accounts**, and **Governance Guardrails** via **Argo CD**, **Helm**, and the **Grafana Operator** (with zero custom scripts).
+Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azure AD (Entra ID) Group Sync**, **Parent/Child Folders & Permissions**, **Fine-Grained Fixed RBAC Roles**, **Loki Log-Based Access Control (LBAC)**, **Service Accounts**, and **Automated Self-Service Resource Onboarding** via **Argo CD**, **Helm**, and the **Grafana Operator** (with zero custom scripts).
 
 ---
 
@@ -10,10 +10,9 @@ All resources are modeled in modular value files, validated via policy-as-code g
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          MODULAR DECLARATIVE VALUES                         │
-│   chart/values/Team.yaml                  chart/values/GrafanaFolder.yaml   │
-│   chart/values/TeamLBACRule.yaml          chart/values/GrafanaServiceAccount│
-│   chart/values/ResourcePermission.yaml    chart/values.yaml                 │
+│                       SELF-SERVICE ONBOARDING / VALUES                      │
+│   - GitHub Actions UI: Automated Resource Onboarding (onboard.yaml)         │
+│   - Modular Values: Team.yaml | GrafanaFolder.yaml | ServiceAccount.yaml    │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
                                        ▼ (PR Policy Guardrails / Conftest)
@@ -21,7 +20,7 @@ All resources are modeled in modular value files, validated via policy-as-code g
 │                       AUTOMATED GOVERNANCE & CHECKS                         │
 │   - Conftest / OPA Security Rules (policy/security.rego)                    │
 │   - Dependabot Operator Upgrade Watch (.github/dependabot.yml)              │
-│   - Nightly Drift Detection Workflow (.github/workflows/drift-detection)   │
+│   - Nightly Drift & Integrity Detection (.github/workflows/drift-detection)│
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
                                        ▼ (Git Commit & Push)
@@ -50,25 +49,28 @@ All resources are modeled in modular value files, validated via policy-as-code g
 
 ---
 
-## 2. Platform Capabilities & Guardrails
+## 2. Automated Resource Onboarding (Zero YAML Editing)
 
-### 2.1 Policy-as-Code Guardrails (`policy/security.rego`)
-Automated PR checks using Conftest / OPA prevent accidental misconfigurations:
-- **Zero Global Admin SAs**: Auto-blocks service accounts with broad `role: Admin` or `role: Editor` (enforces `role: None` + fine-grained `fixedRoles`).
-- **Token Expiry Enforcement**: Ensures all service account tokens have valid expiration dates.
-- **Identifier Validation**: Enforces mandatory UIDs for folders and slugs for teams.
+You do **not** need to manually edit YAML files to add, update, or remove resources. 
 
-### 2.2 Official Grafana Operator Dashboard (`chart/templates/GrafanaDashboard.yaml`)
-- Imports the official Grafana Operator dashboard (**ID: `22785`**) via native `GrafanaDashboard` CRD.
-- Placed directly inside the root `Osttra` folder to monitor reconciliation queues, sync status, and controller latency.
+### Method A: Via GitHub Actions UI
+1. Go to **Actions** $\rightarrow$ **Automated Resource Onboarding**.
+2. Click **Run workflow**.
+3. Select the `action` (`add_or_update` or `remove`) and `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
+4. Enter the details (e.g., Name: `Payments Team`, Roles: `fixed:dashboards:reader,fixed:datasources:explorer`).
+5. The workflow automatically updates the values file, passes Conftest policy checks, commits the change, and triggers Argo CD synchronization!
 
-### 2.3 Operator Upgrade Watch (`.github/dependabot.yml`)
-- Automated weekly watch on the upstream Grafana Operator Helm repository (`https://grafana.github.io/helm-charts`).
-- Alerts the platform team when new operator versions (`v5.25.x+`) introduce new CRDs (e.g. `GrafanaTeam`), keeping the platform 100% aligned with upstream.
+### Method B: Via CLI / Makefile
+```bash
+# Onboard a new team:
+make onboard-team NAME="Payments" SLUG="payments" ROLES="fixed:dashboards:reader,fixed:datasources:explorer" GROUPS="guid-1,guid-2"
 
-### 2.4 Nightly Drift & Integrity Detection (`.github/workflows/drift-detection.yaml`)
-- Scheduled nightly workflow validating rendering integrity and policy compliance.
-- Automatically opens a GitHub Issue if drift or policy violations are detected.
+# Onboard a new folder under Osttra with team Admin ownership:
+make onboard-folder NAME="Payments" SLUG="folder-payments" ADMIN_TEAM="payments"
+
+# Onboard a service account (base role None + fine-grained fixed roles):
+make onboard-sa NAME="payments-ci" ROLES="fixed:dashboards:reader"
+```
 
 ---
 
@@ -94,6 +96,8 @@ Automated PR checks using Conftest / OPA prevent accidental misconfigurations:
 │       ├── Team.yaml                   # GrafanaManifest Team CRs
 │       ├── TeamLBACRule.yaml           # GrafanaManifest TeamLBACRule CRs
 │       └── ResourcePermission.yaml     # GrafanaManifest ResourcePermission CRs
+├── scripts/
+│   └── onboard.py                      # Automated resource onboarding engine
 ├── policy/
 │   └── security.rego                   # Conftest / OPA security & compliance guardrails
 ├── deploy/
@@ -104,10 +108,11 @@ Automated PR checks using Conftest / OPA prevent accidental misconfigurations:
 ├── .github/
 │   ├── dependabot.yml                  # Operator & GitHub Actions upgrade watch
 │   └── workflows/
-│       ├── validate.yaml               # PR lint, Conftest policy, and template dry-run
+│       ├── validate.yaml               # Consolidated PR lint, Conftest policy, & dry-run
 │       ├── deploy.yaml                 # GitOps deployment pipeline
-│       └── drift-detection.yaml        # Nightly drift & integrity check
-├── Makefile                            # make validate, make render, make install
+│       ├── drift-detection.yaml        # Nightly drift & integrity check
+│       └── onboard.yaml                # Self-service UI onboarding workflow
+├── Makefile                            # make validate, make render, make onboard-*
 └── README.md                           # Master platform documentation
 ```
 
@@ -121,4 +126,7 @@ make validate
 
 # Render final Kubernetes manifests to stdout:
 make render
+
+# Local bootstrap:
+make install
 ```

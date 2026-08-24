@@ -1,0 +1,111 @@
+name: Automated Resource Onboarding
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'add_or_update'
+        type: choice
+        options:
+          - add_or_update
+          - remove
+      resource_type:
+        description: 'Resource Type'
+        required: true
+        default: 'team'
+        type: choice
+        options:
+          - team
+          - folder
+          - service_account
+          - lbac_rule
+      name:
+        description: 'Name / Display Title (e.g. Payments Team, folder name, SA name)'
+        required: true
+        type: string
+      slug:
+        description: 'Identifier / Slug / UID (e.g. payments, folder-payments)'
+        required: false
+        type: string
+      email:
+        description: 'Contact Email (for teams)'
+        required: false
+        type: string
+      sync_groups:
+        description: 'Azure AD Group GUIDs (comma-separated, for teams)'
+        required: false
+        type: string
+      roles:
+        description: 'Fixed Roles (comma-separated, e.g. fixed:dashboards:reader,fixed:datasources:explorer)'
+        required: false
+        type: string
+      admin_team:
+        description: 'Owner / Admin Team (for folders - gets permission: 4)'
+        required: false
+        type: string
+      selector:
+        description: 'LogQL Selector (for Loki LBAC rules, e.g. { app="payments" })'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  onboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Execute Onboarding Automation
+        run: |
+          python scripts/onboard.py \
+            --type "${{ github.event.inputs.resource_type }}" \
+            --action "${{ github.event.inputs.action }}" \
+            --name "${{ github.event.inputs.name }}" \
+            --slug "${{ github.event.inputs.slug }}" \
+            --email "${{ github.event.inputs.email }}" \
+            --sync-groups "${{ github.event.inputs.sync_groups }}" \
+            --roles "${{ github.event.inputs.roles }}" \
+            --admin-team "${{ github.event.inputs.admin_team }}" \
+            --selector '${{ github.event.inputs.selector }}'
+
+      - name: Validate YAML & Helm Syntax
+        uses: azure/setup-helm@v4
+      - name: Run Validation Checks
+        run: |
+          helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
+          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml > /dev/null
+
+      - name: Run Conftest Policy Checks
+        uses: open-policy-agent/conftest-action@v1.5.0
+        with:
+          files: chart/values/*.yaml
+          policy: policy/
+
+      - name: Commit & Push Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add chart/values/
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          ACTION="${{ github.event.inputs.action }}"
+          TYPE="${{ github.event.inputs.resource_type }}"
+          NAME="${{ github.event.inputs.name }}"
+          git commit -m "chore(gitops): ${ACTION} ${TYPE} '${NAME}' via automated workflow"
+          git push origin main

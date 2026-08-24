@@ -9,11 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  yaml:
+  validate:
+    name: Lint, Policy & Template Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate YAML syntax
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate YAML Syntax
         run: |
           python - <<'PY'
           import pathlib, sys, yaml
@@ -32,11 +35,7 @@ jobs:
           print('YAML syntax OK')
           PY
 
-  policy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reject credential-like literals
+      - name: Credential Scanner (Reject Plaintext Secrets)
         shell: bash
         run: |
           set -euo pipefail
@@ -45,39 +44,39 @@ jobs:
             echo 'Potential credential literal found.' >&2
             exit 1
           fi
-      - name: Run Conftest Policy-as-Code Guardrails
+
+      - name: Conftest Policy-as-Code Guardrails
         uses: open-policy-agent/conftest-action@v1.5.0
         with:
           files: chart/values/*.yaml
           policy: policy/
 
-  helm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - name: Lint and template grafana-admin-platform chart
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint and Template Chart
         run: |
           helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
-          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml >/tmp/chart-rendered.yaml
-          test -s /tmp/chart-rendered.yaml
-      - name: Helm template official Grafana Operator
-        run: |
-          helm template grafana-operator \
-            oci://ghcr.io/grafana/helm-charts/grafana-operator \
-            --version 5.24.0 \
-            --namespace grafana-operator \
-            --values deploy/operator-values.yaml >/tmp/operator-rendered.yaml
-          test -s /tmp/operator-rendered.yaml
+          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml > /tmp/rendered.yaml
+          test -s /tmp/rendered.yaml
 
-  cluster-schema:
+  cluster-validation:
+    name: Kubernetes Server-Side Dry-Run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
-      - uses: azure/setup-helm@v4
-      - uses: helm/kind-action@v1.10.0
-      - name: Install official Grafana Operator CRDs/controller
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Tools
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup Kind Cluster
+        uses: helm/kind-action@v1.10.0
+
+      - name: Install Grafana Operator CRDs
         run: |
           kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
           helm upgrade --install grafana-operator \
@@ -86,7 +85,8 @@ jobs:
             --namespace grafana-operator \
             --values deploy/operator-values.yaml
           kubectl wait --for=condition=Established crd/grafanas.grafana.integreatly.org --timeout=120s
-      - name: Server-side validate desired Grafana resources
+
+      - name: Server-Side Dry-Run Manifests
         run: |
           kubectl create namespace grafana-admin --dry-run=client -o yaml | kubectl apply -f -
           helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml | kubectl apply --dry-run=server -n grafana-admin -f -
