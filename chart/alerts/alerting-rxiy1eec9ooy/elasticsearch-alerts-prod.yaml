@@ -1,0 +1,849 @@
+folderUID: alerting-rxiy1eec9ooy
+name: elasticsearch_alerts_prod
+interval: 1m
+rules:
+- uid: cf3d467e-b869-57d1-8c9c-cbc9ca8e5c69
+  title: ProdUatDrHighCpuUtilization
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (name, cluster, Environment, Application, host) ( elasticsearch_os_cpu_percent{
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"
+        } ) > 80.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: LinuxNode
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 90.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 90.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrHighCpuUtilization high threshold reached on {{ $labels.instance
+      }}
+- uid: bad61dfb-ea20-53ee-9caf-4879f105b91b
+  title: ProdUatDrElasticsearchDiskUsage
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: min by (name, cluster, Environment, Application, mount, host) ( elasticsearch_filesystem_data_available_bytes{
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"
+        } / elasticsearch_filesystem_data_size_bytes{ Environment=~"PROD|UAT|DR",
+        Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"
+        } * 100 ) > 20.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 30.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 30.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchDiskUsage high threshold reached on {{ $labels.instance
+      }}
+- uid: c2089665-aa0f-5eb2-bccd-fa87ea233d56
+  title: ProdUatDrElasticsearchHighShardDensity
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (cluster, Environment, Application) ( elasticsearch_cluster_health_active_shards{
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"
+        } / elasticsearch_cluster_health_number_of_nodes{ Environment=~"PROD|UAT|DR",
+        Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"
+        } ) > 470.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 500.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 500.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchHighShardDensity high threshold reached on {{ $labels.instance
+      }}
+- uid: 1893aa01-2612-51d6-afee-0eb5302c3920
+  title: ProdUatDrElasticsearchJvmHeapUsage
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (name, cluster, Environment, Application) ( elasticsearch_jvm_memory_used_bytes{area="heap",
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"}
+        / elasticsearch_jvm_memory_max_bytes{area="heap", Environment=~"PROD|UAT|DR",
+        Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"}
+        * 100 ) > 90.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 95.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 95.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchJvmHeapUsage high threshold reached on {{ $labels.instance
+      }}
+- uid: 38ce3a83-85a3-5531-a6c2-5f054ae782b6
+  title: ProdUatDrElasticsearchRamUsage
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (instance, Application, Environment, cluster) ( (1 - node_memory_MemAvailable_bytes{Application=~"STPaaS|TradeServ",
+        Environment=~"PROD|UAT|DR", instance=~".*esn.*"} / node_memory_MemTotal_bytes{Application=~"STPaaS|TradeServ",
+        Environment=~"PROD|UAT|DR", instance=~".*esn.*"}) * 100 ) > 85.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 95.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 95.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchRamUsage high threshold reached on {{ $labels.instance
+      }}
+- uid: 3e08537f-f04d-50ff-9552-2b528b71ba94
+  title: ProdUatDrElasticsearchIndexDocCount
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (index, cluster, Environment) ( elasticsearch_indices_docs_total{Environment=~"PROD|UAT|DR",
+        cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"} ) > 700000000.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 1000000000.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 1000000000.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchIndexDocCount high threshold reached on {{ $labels.instance
+      }}
+- uid: 957b9af4-8401-5681-8735-02cd5c148d83
+  title: ProdUatDrElasticsearchClusterRedStatus
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (cluster, Environment, Application) (   elasticsearch_cluster_health_status{color="red",
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"}
+        ) > 0.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 5m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 0.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 0.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchClusterRedStatus high threshold reached on {{ $labels.instance
+      }}
+- uid: 621817bd-a6a6-54a9-b9ce-c90f82de810d
+  title: ProdUatDrElasticsearchClusterYellowStatus
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: max by (cluster, Environment, Application) ( elasticsearch_cluster_health_status{color="yellow",
+        Environment=~"PROD|UAT|DR", Application=~"STPaaS|TradeServ", cluster=~"esprd04|esprd06|esprd07|esprd08|esuat02|esuat04"}
+        ) > 0.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 30m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: Elasticsearch
+    Environment: Production
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 0.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 0.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: ProdUatDrElasticsearchClusterYellowStatus high threshold reached on {{
+      $labels.instance }}

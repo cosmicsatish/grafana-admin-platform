@@ -1,0 +1,108 @@
+folderUID: alerting-rxiy1eec9ooy
+name: mserv_db_testing
+interval: 1m
+rules:
+- uid: d4e8772a-068d-5b89-a5fa-bf70008d4b2c
+  title: MservOracledbProcessUtilization80
+  condition: threshold
+  data:
+  - refId: query
+    queryType: prometheus
+    relativeTimeRange:
+      from: 660
+      to: 60
+    datasourceUid: grafanacloud-prom
+    model:
+      datasource:
+        type: prometheus
+        uid: grafanacloud-prom
+      expr: (   sum by(database, db_name, inst_id, Environment, site) (oracledb_process_count{Environment="MServ_PROD",role!="standby"})   /   max
+        by(database, db_name, inst_id, Environment, site) (oracledb_resource_limit_value{resource_name="processes",Environment="MServ_PROD",role!="standby"})
+        ) * 100 > 80.0
+      instant: true
+      intervalMs: 1000
+      maxDataPoints: 43200
+      range: false
+      refId: query
+  - refId: prometheus_math
+    queryType: math
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: is_number($query) || is_nan($query) || is_inf($query)
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: prometheus_math
+      type: math
+  - refId: threshold
+    queryType: threshold
+    relativeTimeRange:
+      from: 0
+      to: 0
+    datasourceUid: __expr__
+    model:
+      conditions:
+      - evaluator:
+          params:
+          - 0
+          type: gt
+      datasource:
+        IsPrunable: false
+        access: ''
+        apiVersion: ''
+        basicAuth: false
+        basicAuthUser: ''
+        created: '0001-01-01T00:00:00Z'
+        database: ''
+        id: -100
+        isDefault: false
+        jsonData: {}
+        name: __expr__
+        readOnly: false
+        secureJsonData: {}
+        type: __expr__
+        uid: __expr__
+        updated: '0001-01-01T00:00:00Z'
+        url: ''
+        user: ''
+        withCredentials: false
+      expression: prometheus_math
+      intervalMs: 1000
+      maxDataPoints: 43200
+      refId: threshold
+      type: threshold
+  for: 1m
+  noDataState: OK
+  execErrState: OK
+  isPaused: true
+  labels:
+    Application: OracleDB
+    __converted_prometheus_rule__: 'true'
+    severity: '{{ if ge $value 90.0 }}critical{{ else }}warning{{ end }}'
+  annotations:
+    description: 'Metric value is at {{ printf "%.2f" $value }} (Severity: {{ if ge
+      $value 90.0 }}CRITICAL{{ else }}WARNING{{ end }}).'
+    summary: MservOracledbProcessUtilization80 high threshold reached on {{ $labels.instance
+      }}
