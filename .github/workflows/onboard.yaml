@@ -69,7 +69,7 @@ jobs:
       - name: Install PyYAML
         run: pip install pyyaml
 
-      - name: Process Resource Mutation
+      - name: Process Resource Mutation & Synchronize with Grafana Cloud
         env:
           ACTION: ${{ github.event.inputs.action }}
           CONFIRM_DELETE: ${{ github.event.inputs.confirm_delete }}
@@ -80,9 +80,11 @@ jobs:
           ROLES: ${{ github.event.inputs.roles }}
           SYNC_GROUPS: ${{ github.event.inputs.sync_groups }}
           SELECTOR: ${{ github.event.inputs.selector }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+          GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
           python - <<'PY'
-          import os, sys, re, yaml
+          import os, sys, re, yaml, json, urllib.request, ssl
 
           action = os.environ.get("ACTION", "add_or_update")
           confirm_delete = os.environ.get("CONFIRM_DELETE", "")
@@ -93,6 +95,8 @@ jobs:
           roles_raw = os.environ.get("ROLES", "").strip()
           sync_groups_raw = os.environ.get("SYNC_GROUPS", "").strip()
           selector = os.environ.get("SELECTOR", "").strip()
+          grafana_token = os.environ.get("GRAFANA_API_KEY", "")
+          grafana_url = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net")
 
           # Normalize slug to RFC 1123 DNS-safe format (lowercase, replace spaces/symbols with hyphens)
           slug = re.sub(r'[^a-z0-9-]', '-', slug_raw.lower()).strip('-') if slug_raw else re.sub(r'[^a-z0-9-]', '-', name.lower()).strip('-')
@@ -110,6 +114,26 @@ jobs:
               with open(path, "w") as f:
                   yaml.dump(data, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
+          # Helper for Grafana Cloud REST calls
+          def grafana_api(path, data=None, method="GET"):
+              if not grafana_token:
+                  return None
+              ctx = ssl._create_unverified_context()
+              headers = {
+                  "Authorization": f"Bearer {grafana_token}",
+                  "Accept": "application/json",
+                  "Content-Type": "application/json"
+              }
+              url = f"{grafana_url}{path}"
+              body = json.dumps(data).encode() if data is not None else None
+              req = urllib.request.Request(url, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, context=ctx) as r:
+                      return json.loads(r.read())
+              except Exception as e:
+                  print(f"⚠️ Grafana API call ({method} {path}) notice: {e}")
+                  return None
+
           if action == "remove":
               if confirm_delete != "DELETE":
                   print("❌ Safety Check Failed: You must type 'DELETE' in confirm_delete to remove resources.", file=sys.stderr)
@@ -122,6 +146,14 @@ jobs:
                   t_data = load_yaml(team_file)
                   t_data["teams"] = [t for t in t_data.get("teams", []) if t.get("slug") != slug and t.get("slug") != slug_raw and t.get("name") != name]
                   save_yaml(team_file, t_data)
+
+                  # Delete from Grafana Cloud if exists
+                  if grafana_token:
+                      teams = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
+                      for t in (teams.get("teams", []) if teams else []):
+                          if t.get("name") == name:
+                              grafana_api(f"/api/teams/{t['id']}", method="DELETE")
+                              print(f"🗑️ Deleted team '{name}' (ID: {t['id']}) from Grafana Cloud")
 
                   perm_file = "chart/values/ResourcePermission.yaml"
                   p_data = load_yaml(perm_file)
@@ -177,6 +209,31 @@ jobs:
               teams.append(team_entry)
               t_data["teams"] = teams
               save_yaml(team_file, t_data)
+
+              # Create/Sync in Grafana Cloud via REST API
+              if grafana_token:
+                  search_res = grafana_api(f"/api/teams/search?query={urllib.parse.quote(name)}")
+                  existing_teams = search_res.get("teams", []) if search_res else []
+                  matched = next((t for t in existing_teams if t.get("name") == name), None)
+                  if not matched:
+                      create_res = grafana_api("/api/teams", data={"name": name}, method="POST")
+                      team_id = create_res.get("teamId") if create_res else None
+                      print(f"✅ Created team '{name}' in Grafana Cloud (ID: {team_id})")
+                  else:
+                      team_id = matched.get("id")
+                      print(f"ℹ️ Team '{name}' already exists in Grafana Cloud (ID: {team_id})")
+
+                  if team_id and roles:
+                      all_roles = grafana_api("/api/access-control/roles") or []
+                      role_uids = [r["uid"] for r in all_roles if r.get("name") in roles]
+                      if role_uids:
+                          grafana_api(f"/api/access-control/teams/{team_id}/roles", data={"roleUids": role_uids}, method="PUT")
+                          print(f"✅ Assigned RBAC roles {roles} to team '{name}' in Grafana Cloud")
+
+                  if team_id and sync_groups:
+                      for sg in sync_groups:
+                          grafana_api(f"/api/teams/{team_id}/groups", data={"groupId": sg}, method="POST")
+                          print(f"✅ Synced Azure AD Group {sg} to team '{name}'")
 
               if selector:
                   lbac_file = "chart/values/TeamLBACRule.yaml"
