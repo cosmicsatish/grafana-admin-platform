@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 VALUES_FLAGS := -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
 
-.PHONY: validate render install onboard-team onboard-folder onboard-sa
+.PHONY: validate render install
 
 validate:
 	@python3 -c 'import pathlib,yaml; [list(yaml.safe_load_all(p.read_text())) for p in pathlib.Path(".").rglob("*.yaml") if ".git" not in p.parts and "templates" not in p.parts]; print("YAML syntax OK")'
@@ -15,12 +15,3 @@ render:
 
 install:
 	@./deploy/install.sh
-
-onboard-team:
-	@python3 scripts/onboard.py --type team --name "$(NAME)" --slug "$(SLUG)" --roles "$(ROLES)" --sync-groups "$(GROUPS)"
-
-onboard-folder:
-	@python3 scripts/onboard.py --type folder --name "$(NAME)" --slug "$(SLUG)" --admin-team "$(ADMIN_TEAM)"
-
-onboard-sa:
-	@python3 scripts/onboard.py --type service_account --name "$(NAME)" --roles "$(ROLES)"

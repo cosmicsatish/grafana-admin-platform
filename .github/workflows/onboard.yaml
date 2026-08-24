@@ -3,14 +3,6 @@ name: Automated Resource Onboarding
 on:
   workflow_dispatch:
     inputs:
-      action:
-        description: 'Action to perform'
-        required: true
-        default: 'add_or_update'
-        type: choice
-        options:
-          - add_or_update
-          - remove
       resource_type:
         description: 'Resource Type'
         required: true
@@ -22,27 +14,23 @@ on:
           - service_account
           - lbac_rule
       name:
-        description: 'Name / Display Title (e.g. Payments Team, folder name, SA name)'
+        description: 'Name / Title (e.g. Payments, DBS Analytics)'
         required: true
         type: string
       slug:
         description: 'Identifier / Slug / UID (e.g. payments, folder-payments)'
-        required: false
+        required: true
         type: string
-      email:
-        description: 'Contact Email (for teams)'
-        required: false
-        type: string
-      sync_groups:
-        description: 'Azure AD Group GUIDs (comma-separated, for teams)'
+      owner:
+        description: 'Owner Team (for folders or service accounts)'
         required: false
         type: string
       roles:
         description: 'Fixed Roles (comma-separated, e.g. fixed:dashboards:reader,fixed:datasources:explorer)'
         required: false
         type: string
-      admin_team:
-        description: 'Owner / Admin Team (for folders - gets permission: 4)'
+      sync_groups:
+        description: 'Azure AD Group GUIDs (comma-separated, for teams)'
         required: false
         type: string
       selector:
@@ -52,7 +40,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   onboard:
@@ -61,35 +48,57 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install PyYAML
-        run: pip install pyyaml
-
-      - name: Execute Onboarding Automation
+      - name: Add Resource using native yq
+        env:
+          TYPE: ${{ github.event.inputs.resource_type }}
+          NAME: ${{ github.event.inputs.name }}
+          SLUG: ${{ github.event.inputs.slug }}
+          OWNER: ${{ github.event.inputs.owner }}
+          ROLES: ${{ github.event.inputs.roles }}
+          SYNC_GROUPS: ${{ github.event.inputs.sync_groups }}
+          SELECTOR: ${{ github.event.inputs.selector }}
         run: |
-          python scripts/onboard.py \
-            --type "${{ github.event.inputs.resource_type }}" \
-            --action "${{ github.event.inputs.action }}" \
-            --name "${{ github.event.inputs.name }}" \
-            --slug "${{ github.event.inputs.slug }}" \
-            --email "${{ github.event.inputs.email }}" \
-            --sync-groups "${{ github.event.inputs.sync_groups }}" \
-            --roles "${{ github.event.inputs.roles }}" \
-            --admin-team "${{ github.event.inputs.admin_team }}" \
-            --selector '${{ github.event.inputs.selector }}'
+          set -euo pipefail
 
-      - name: Validate YAML & Helm Syntax
+          if [[ "$TYPE" == "team" ]]; then
+            ENTRY="{\"name\": \"$NAME\", \"slug\": \"$SLUG\"}"
+            if [[ -n "$ROLES" ]]; then
+              ENTRY=$(echo "$ENTRY" | yq -o=json ".roles = (\"$ROLES\" | split(\",\"))")
+            fi
+            if [[ -n "$SYNC_GROUPS" ]]; then
+              ENTRY=$(echo "$ENTRY" | yq -o=json ".syncGroups = (\"$SYNC_GROUPS\" | split(\",\"))")
+            fi
+            echo "$ENTRY" | yq -P -i '.teams += [load("/dev/stdin")]' chart/values/Team.yaml
+
+          elif [[ "$TYPE" == "folder" ]]; then
+            OWNER_TEAM="${OWNER:-platform}"
+            ENTRY="{\"title\": \"$NAME\", \"uid\": \"$SLUG\", \"parentUid\": \"osttra\", \"owner\": \"$OWNER_TEAM\", \"permissions\": [{\"role\": \"Viewer\", \"permission\": 1}, {\"team\": \"$OWNER_TEAM\", \"permission\": 4}]}"
+            echo "$ENTRY" | yq -P -i '.folders += [load("/dev/stdin")]' chart/values/GrafanaFolder.yaml
+
+          elif [[ "$TYPE" == "service_account" ]]; then
+            ENTRY="{\"name\": \"$NAME\", \"role\": \"None\", \"secretName\": \"${SLUG}-token\"}"
+            if [[ -n "$OWNER" ]]; then
+              ENTRY=$(echo "$ENTRY" | yq -o=json ".owner = \"$OWNER\"")
+            fi
+            if [[ -n "$ROLES" ]]; then
+              ENTRY=$(echo "$ENTRY" | yq -o=json ".fixedRoles = (\"$ROLES\" | split(\",\"))")
+            fi
+            echo "$ENTRY" | yq -P -i '.serviceAccounts += [load("/dev/stdin")]' chart/values/GrafanaServiceAccount.yaml
+
+          elif [[ "$TYPE" == "lbac_rule" ]]; then
+            ENTRY="{\"name\": \"$SLUG\", \"team\": \"${OWNER:-$SLUG}\", \"datasource\": \"loki-lbac\", \"selector\": \"$SELECTOR\"}"
+            echo "$ENTRY" | yq -P -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
+          fi
+
+      - name: Setup Helm
         uses: azure/setup-helm@v4
-      - name: Run Validation Checks
+
+      - name: Validate Syntax & Linting
         run: |
           helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
           helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml > /dev/null
 
-      - name: Run Conftest Policy Checks
+      - name: Run Conftest Policy Guardrails
         uses: open-policy-agent/conftest-action@v1.5.0
         with:
           files: chart/values/*.yaml
@@ -104,8 +113,5 @@ jobs:
             echo "No changes to commit."
             exit 0
           fi
-          ACTION="${{ github.event.inputs.action }}"
-          TYPE="${{ github.event.inputs.resource_type }}"
-          NAME="${{ github.event.inputs.name }}"
-          git commit -m "chore(gitops): ${ACTION} ${TYPE} '${NAME}' via automated workflow"
+          git commit -m "chore(gitops): onboard ${{ github.event.inputs.resource_type }} '${{ github.event.inputs.name }}'"
           git push origin main

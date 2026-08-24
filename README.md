@@ -11,7 +11,7 @@ All resources are modeled in modular value files, validated via policy-as-code g
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                       SELF-SERVICE ONBOARDING / VALUES                      │
-│   - GitHub Actions UI: Automated Resource Onboarding (onboard.yaml)         │
+│   - GitHub Actions UI: Automated Resource Onboarding (onboard.yaml via yq)  │
 │   - Modular Values: Team.yaml | GrafanaFolder.yaml | ServiceAccount.yaml    │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
@@ -49,28 +49,15 @@ All resources are modeled in modular value files, validated via policy-as-code g
 
 ---
 
-## 2. Automated Resource Onboarding (Zero YAML Editing)
+## 2. Automated Resource Onboarding (Zero Custom Code)
 
-You do **not** need to manually edit YAML files to add, update, or remove resources. 
+To onboard or manage resources without manually editing YAML files, use the native **GitHub Actions Workflow Dispatch**:
 
-### Method A: Via GitHub Actions UI
 1. Go to **Actions** $\rightarrow$ **Automated Resource Onboarding**.
 2. Click **Run workflow**.
-3. Select the `action` (`add_or_update` or `remove`) and `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
-4. Enter the details (e.g., Name: `Payments Team`, Roles: `fixed:dashboards:reader,fixed:datasources:explorer`).
-5. The workflow automatically updates the values file, passes Conftest policy checks, commits the change, and triggers Argo CD synchronization!
-
-### Method B: Via CLI / Makefile
-```bash
-# Onboard a new team:
-make onboard-team NAME="Payments" SLUG="payments" ROLES="fixed:dashboards:reader,fixed:datasources:explorer" GROUPS="guid-1,guid-2"
-
-# Onboard a new folder under Osttra with team Admin ownership:
-make onboard-folder NAME="Payments" SLUG="folder-payments" ADMIN_TEAM="payments"
-
-# Onboard a service account (base role None + fine-grained fixed roles):
-make onboard-sa NAME="payments-ci" ROLES="fixed:dashboards:reader"
-```
+3. Select `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
+4. Fill in the simple form fields (e.g. Name: `Payments`, Slug: `payments`, Roles: `fixed:dashboards:reader,fixed:datasources:explorer`).
+5. The workflow uses standard Linux **`yq`** to append the entry, validates it with Conftest security policies, commits the change, and triggers Argo CD!
 
 ---
 
@@ -96,8 +83,6 @@ make onboard-sa NAME="payments-ci" ROLES="fixed:dashboards:reader"
 │       ├── Team.yaml                   # GrafanaManifest Team CRs
 │       ├── TeamLBACRule.yaml           # GrafanaManifest TeamLBACRule CRs
 │       └── ResourcePermission.yaml     # GrafanaManifest ResourcePermission CRs
-├── scripts/
-│   └── onboard.py                      # Automated resource onboarding engine
 ├── policy/
 │   └── security.rego                   # Conftest / OPA security & compliance guardrails
 ├── deploy/
@@ -111,8 +96,8 @@ make onboard-sa NAME="payments-ci" ROLES="fixed:dashboards:reader"
 │       ├── validate.yaml               # Consolidated PR lint, Conftest policy, & dry-run
 │       ├── deploy.yaml                 # GitOps deployment pipeline
 │       ├── drift-detection.yaml        # Nightly drift & integrity check
-│       └── onboard.yaml                # Self-service UI onboarding workflow
-├── Makefile                            # make validate, make render, make onboard-*
+│       └── onboard.yaml                # Native yq self-service UI onboarding workflow
+├── Makefile                            # make validate, make render, make install
 └── README.md                           # Master platform documentation
 ```
 
