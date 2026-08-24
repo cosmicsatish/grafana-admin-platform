@@ -232,7 +232,7 @@ The Grafana Operator manages `TeamLBACRule` resources through the `iam.grafana.a
 
 ```bash
 # Check all managed Grafana resources
-kubectl get grafana,grafanafolder,grafanaserviceaccount,grafanadatasource,grafanamanifest \
+kubectl get grafana,grafanafolder,grafanaserviceaccount,grafanadatasource \
   -n grafana-operator-configs
 
 # Inspect folder synchronization details

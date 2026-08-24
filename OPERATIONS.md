@@ -243,7 +243,7 @@ make render
 
 ```bash
 # List all managed resources
-kubectl get grafana,grafanafolder,grafanaserviceaccount,grafanadatasource,grafanamanifest \
+kubectl get grafana,grafanafolder,grafanaserviceaccount,grafanadatasource \
   -n grafana-operator-configs
 
 # Check folder synchronization status
