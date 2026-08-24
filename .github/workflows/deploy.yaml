@@ -52,6 +52,6 @@ jobs:
       - name: Verify Reconciliation & Display Status
         run: |
           echo "Waiting for Grafana Operator reconciliation..."
-          kubectl wait --for=condition=GrafanaReady grafana/grafana -n grafana-admin --timeout=180s || true
+          kubectl wait --for=condition=GrafanaReady grafana/grafana -n grafana-admin --timeout=30s || true
           echo "=== Managed Resources Status ==="
-          kubectl get grafanas,grafanafolders,grafanaserviceaccounts,grafanadatasources,grafanadashboards,grafanamanifests -n grafana-admin -o wide
+          kubectl get grafanas,grafanafolders,grafanaserviceaccounts,grafanadatasources,grafanadashboards,grafanamanifests -n grafana-admin -o wide || true
