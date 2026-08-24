@@ -20,7 +20,7 @@ jobs:
         uses: azure/setup-kubectl@v4
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: Setup Kind Cluster
         uses: helm/kind-action@v1.10.0
