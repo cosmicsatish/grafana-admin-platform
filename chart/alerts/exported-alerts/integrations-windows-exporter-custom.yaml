@@ -1,4 +1,4 @@
-folderUID: alerting-3tqje4zxqj67y
+folderUID: exported-alerts
 name: integrations-windows-exporter-custom
 interval: 1m
 rules:

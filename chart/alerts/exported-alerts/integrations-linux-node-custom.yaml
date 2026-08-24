@@ -1,4 +1,4 @@
-folderUID: alerting-3tqje4zxqj67y
+folderUID: exported-alerts
 name: integrations-linux-node-custom
 interval: 1m
 rules:

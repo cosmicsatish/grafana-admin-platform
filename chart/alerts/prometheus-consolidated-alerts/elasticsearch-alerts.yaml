@@ -1,4 +1,4 @@
-folderUID: alerting-rxiy1eec9ooy
+folderUID: prometheus-consolidated-alerts
 name: elasticsearch_alerts
 interval: 1m
 rules:
