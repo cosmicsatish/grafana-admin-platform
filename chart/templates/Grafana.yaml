@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.grafana.name | default "grafanacloud-osttra" }}
   labels:
     {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+    dashboards: {{ .Values.grafana.matchLabels.dashboards | default "osttra" }}
 spec:
   external:
     url: {{ .Values.grafana.url | quote }}
