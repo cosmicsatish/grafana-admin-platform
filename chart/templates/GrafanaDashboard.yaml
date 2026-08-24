@@ -1,19 +1,19 @@
 {{- range $path, $_ := .Files.Glob "dashboards/**/*.json" }}
 {{- $parts := splitList "/" $path }}
-{{- $folderUID := index $parts 1 }}
+{{- $folderName := index $parts 1 }}
 {{- $fileName := index $parts 2 }}
 {{- $baseName := trimSuffix ".json" $fileName }}
 ---
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:
-  name: {{ printf "%s-%s-dashboard" $folderUID $baseName | lower | replace "_" "-" }}
+  name: {{ printf "%s-%s-dashboard" $folderName $baseName | lower | replace "_" "-" }}
   labels:
     {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
-    folder: {{ $folderUID }}
+    folder: {{ $folderName }}
 spec:
   {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
-  folderUID: {{ $folderUID | quote }}
+  folderUID: {{ $folderName | quote }}
   json: |
 {{ $.Files.Get $path | indent 4 }}
 {{- end }}

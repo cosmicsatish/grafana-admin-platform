@@ -1,6 +1,6 @@
 {{- range $path, $_ := .Files.Glob "alerts/**/*.yaml" }}
 {{- $parts := splitList "/" $path }}
-{{- $folderUID := index $parts 1 }}
+{{- $folderName := index $parts 1 }}
 {{- $fileName := index $parts 2 }}
 {{- $baseName := trimSuffix ".yaml" $fileName }}
 {{- $content := $.Files.Get $path | fromYaml }}
@@ -8,13 +8,13 @@
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaAlertRuleGroup
 metadata:
-  name: {{ printf "%s-%s" $folderUID $baseName | lower | replace "_" "-" }}
+  name: {{ printf "%s-%s" $folderName $baseName | lower | replace "_" "-" }}
   labels:
     {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
-    folder: {{ $folderUID }}
+    folder: {{ $folderName }}
 spec:
   {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
-  folderUID: {{ $content.folderUID | default $folderUID | quote }}
+  folderUID: {{ $content.folderUID | quote }}
   name: {{ $content.name | default $baseName | quote }}
   interval: {{ $content.interval | default "1m" | quote }}
   editable: true
