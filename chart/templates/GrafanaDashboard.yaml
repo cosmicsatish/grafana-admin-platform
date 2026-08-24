@@ -1,0 +1,13 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: grafana-operator-dashboard
+  labels:
+    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      grafana-admin-platform: managed
+  grafanaCom:
+    id: 22785
+  folderUID: "osttra"

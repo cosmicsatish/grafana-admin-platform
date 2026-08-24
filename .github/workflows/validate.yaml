@@ -45,6 +45,11 @@ jobs:
             echo 'Potential credential literal found.' >&2
             exit 1
           fi
+      - name: Run Conftest Policy-as-Code Guardrails
+        uses: open-policy-agent/conftest-action@v1.5.0
+        with:
+          files: chart/values/*.yaml
+          policy: policy/
 
   helm:
     runs-on: ubuntu-latest
