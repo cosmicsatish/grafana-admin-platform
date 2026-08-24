@@ -67,7 +67,7 @@ helm upgrade --install "$CHART_RELEASE_NAME" chart/ \
   -f chart/values/GrafanaFolder.yaml \
   -f chart/values/TeamLBACRule.yaml \
   -f chart/values/GrafanaServiceAccount.yaml \
-  -f chart/values/ResourcePermission.yaml \
+  -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml \
   --set grafana.url="$GRAFANA_URL" \
   --set grafana.secretName="$GRAFANA_SECRET_NAME" \
   --set grafana.secretKey="$GRAFANA_SECRET_KEY"

@@ -1,19 +1,13 @@
+{{- range .Values.datasources }}
+---
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDatasource
 metadata:
-  name: loki-lbac-datasource
+  name: {{ .name }}
   labels:
-    {{- include "grafana-admin-platform.labels" . | nindent 4 }}
+    {{- include "grafana-admin-platform.labels" $ | nindent 4 }}
 spec:
-  {{- include "grafana-admin-platform.instanceSelector" . | nindent 2 }}
+  {{- include "grafana-admin-platform.instanceSelector" $ | nindent 2 }}
   datasource:
-    name: "loki-lbac"
-    type: "loki"
-    access: "proxy"
-    url: "https://logs-prod-006.grafana.net"
-    uid: "ffvme66npet4wf"
-    isDefault: false
-    editable: true
-    jsonData:
-      httpHeaderName1: "X-Scope-OrgID"
-      maxLines: 5000
+    {{- toYaml .datasource | nindent 4 }}
+{{- end }}

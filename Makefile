@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-VALUES_FLAGS := -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml
+VALUES_FLAGS := -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml
 
 .PHONY: validate render install
 

@@ -18,6 +18,7 @@ spec:
         - values/TeamLBACRule.yaml
         - values/GrafanaServiceAccount.yaml
         - values/ResourcePermission.yaml
+        - values/GrafanaDatasource.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana-operator-configs
