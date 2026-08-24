@@ -6,6 +6,6 @@ metadata:
     {{- include "grafana-admin-platform.labels" . | nindent 4 }}
 spec:
   {{- include "grafana-admin-platform.instanceSelector" . | nindent 2 }}
-  grafanaCom:
-    id: 22785
   folderUID: "osttra"
+  json: |
+{{ .Files.Get "dashboards/grafana-operator.json" | indent 4 }}
