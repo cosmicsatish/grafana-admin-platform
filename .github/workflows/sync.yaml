@@ -1,11 +1,17 @@
 name: GitOps Sync (Argo CD Free)
 
+# Triggered on any push to main that touches chart files, or manually.
+# Renders the Helm chart and applies manifests directly to the cluster
+# via kubectl server-side apply — no Argo CD required.
+#
+# Required GitHub secrets: KUBECONFIG (base64-encoded kubeconfig), GRAFANA_API_KEY
+# Required GitHub variables: GRAFANA_URL (e.g. https://your-stack.grafana.net)
+
 on:
   push:
     branches: [main]
     paths:
       - 'chart/**'
-      - 'deploy/install.sh'
       - 'deploy/operator-values.yaml'
   workflow_dispatch:
 
@@ -88,60 +94,8 @@ jobs:
             --selector app.kubernetes.io/instance=grafana-admin-platform \
             -f /tmp/rendered.yaml
 
-      - name: Apply Loki LBAC rules via REST API
-        env:
-          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
-          GRAFANA_URL: ${{ vars.GRAFANA_URL }}
-        run: |
-          set -euo pipefail
-
-          # Install yq for YAML parsing
-          curl -sL https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_amd64 \
-            -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
-
-          # Fetch datasource UID from Grafana Cloud
-          DS_UID=$(curl -sf \
-            -H "Authorization: Bearer $GRAFANA_API_KEY" \
-            "$GRAFANA_URL/api/datasources/name/grafanacloud-cosmicsatish-logs-lbac" | jq -r '.uid')
-
-          # Build and apply LBAC rules mapping team slug -> team ID -> selectors
-          yq '.lbacRules | map({(.team): [.selector]}) | add' \
-            chart/values/TeamLBACRule.yaml -o json | \
-          python3 - <<'PYEOF'
-          import json, sys, urllib.request, ssl, os
-
-          rules = json.load(sys.stdin)
-          token = os.environ["GRAFANA_API_KEY"]
-          grafana_url = os.environ["GRAFANA_URL"]
-          ds_uid = os.environ.get("DS_UID", "grafanacloud-logs-lbac")
-          ctx = ssl._create_unverified_context()
-          headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-
-          req = urllib.request.Request(f"{grafana_url}/api/teams/search?perpage=500", headers=headers)
-          with urllib.request.urlopen(req, context=ctx) as r:
-              teams = {t["name"].lower(): str(t["id"]) for t in json.loads(r.read()).get("teams", [])}
-
-          output = {}
-          for slug, selectors in rules.items():
-              team_id = teams.get(slug.lower())
-              if team_id:
-                  output[team_id] = selectors
-              else:
-                  print(f"WARNING: team '{slug}' not found in Grafana Cloud", file=sys.stderr)
-
-          payload = json.dumps(output).encode()
-          req = urllib.request.Request(
-              f"{grafana_url}/api/datasources/uid/{ds_uid}/lbac/teams",
-              data=payload,
-              headers={**headers, "Content-Type": "application/json"},
-              method="PUT"
-          )
-          with urllib.request.urlopen(req, context=ctx) as r:
-              print(f"✅ LBAC applied: {r.status} - {r.read().decode()[:100]}")
-          PYEOF
-
       - name: Verify sync
         run: |
-          echo "=== Grafana CRs in grafana-operator-configs ==="
+          echo "=== Grafana CRs applied in grafana-operator-configs ==="
           kubectl get grafana,grafanadatasource,grafanafolder,grafanaserviceaccount,grafanamanifest \
             -n grafana-operator-configs 2>/dev/null || true

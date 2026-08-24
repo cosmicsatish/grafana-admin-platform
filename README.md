@@ -39,7 +39,7 @@ GitHub (source of truth)
      │  push / PR
      ▼
 ┌─────────────────────┐
-│  GitHub Actions CI  │  validate → policy → lint → template
+│  GitHub Actions CI  │  validate → credential scan → OPA policy → Helm lint + template
 └─────────┬───────────┘
           │ (choose one delivery path)
           │
@@ -50,19 +50,16 @@ GitHub (source of truth)
  (Option A)  (Option B, Argo CD Free)
     │            │
     └─────┬──────┘
-          │  helm template | kubectl apply
+          │  helm template | kubectl apply --server-side
           ▼
   Kubernetes Cluster
-  (Grafana Operator)
+  (Grafana Operator v5.24)
           │
-          │  Grafana Operator CRDs reconciled
+          │  Reconciles CRDs to Grafana Cloud REST API
           ▼
-  Grafana Cloud (cosmicsatish.grafana.net)
-  Teams / Folders / Datasources / Alerts / Dashboards
-          │
-          │  LBAC rules applied via REST API
-          ▼
-  Loki LBAC enforced per team
+  Grafana Cloud (your-stack.grafana.net)
+  Teams / Folders / Datasources / Service Accounts /
+  Alert Groups / Dashboards
 ```
 
 ---
@@ -71,79 +68,80 @@ GitHub (source of truth)
 
 ```
 grafana-admin-platform/
-├── chart/                        # Helm chart (source of truth for all CRs)
+├── chart/                          # Helm chart — source of truth for all CRDs
 │   ├── Chart.yaml
-│   ├── values.yaml               # Global config (Grafana URL, secret name)
-│   ├── values/                   # Domain-split values files (edit these!)
-│   │   ├── Team.yaml             # Team definitions (name, slug, roles, Azure AD groups)
-│   │   ├── GrafanaFolder.yaml    # Folder hierarchy with team ACLs
-│   │   ├── GrafanaServiceAccount.yaml  # Service accounts with fine-grained roles
-│   │   ├── GrafanaDatasource.yaml      # Datasource definitions (e.g. LBAC Loki)
-│   │   ├── TeamLBACRule.yaml     # Per-team Loki log stream selectors
-│   │   └── ResourcePermission.yaml     # Datasource-level access assignments
-│   ├── templates/                # Helm templates (do not edit for normal operations)
-│   │   ├── _helpers.tpl          # Shared label/selector helpers
-│   │   ├── Grafana.yaml          # Grafana CR (external cloud instance)
-│   │   ├── GrafanaFolder.yaml    # Generates GrafanaFolder CRs from values/GrafanaFolder.yaml
-│   │   ├── GrafanaServiceAccount.yaml  # Generates GrafanaServiceAccount CRs
-│   │   ├── GrafanaDatasource.yaml      # Generates GrafanaDatasource CRs
-│   │   ├── Team.yaml             # Generates GrafanaManifest/Team CRs
-│   │   ├── TeamLBACRule.yaml     # Generates GrafanaManifest/TeamLBACRule CRs
-│   │   ├── ResourcePermission.yaml     # Generates GrafanaManifest/ResourcePermission CRs
-│   │   ├── GrafanaDashboard.yaml # Auto-discovers dashboards/**/*.json → GrafanaDashboard CRs
-│   │   └── GrafanaAlertRuleGroup.yaml  # Auto-discovers alerts/**/*.yaml → GrafanaAlertRuleGroup CRs
-│   ├── dashboards/               # (optional) Drop JSON dashboards here to auto-provision
-│   │   └── <folder-name>/        # Must match a folder UID in GrafanaFolder.yaml
-│   │       └── my-dashboard.json
-│   └── alerts/                   # (optional) Drop alert rule groups here to auto-provision
-│       └── <folder-name>/        # Must match a folder UID in GrafanaFolder.yaml
-│           └── my-alerts.yaml
+│   ├── values.yaml                 # Global config: Grafana URL, secret name, match labels
+│   ├── values/                     # Domain-split values files (edit these for day-to-day ops)
+│   │   ├── Team.yaml               # Teams: name, slug, RBAC roles, Azure AD sync groups
+│   │   ├── GrafanaFolder.yaml      # Folder hierarchy with team ownership ACLs
+│   │   ├── GrafanaServiceAccount.yaml  # Service accounts with fine-grained fixed roles
+│   │   ├── GrafanaDatasource.yaml  # Datasource definitions (e.g. Loki LBAC datasource)
+│   │   ├── TeamLBACRule.yaml       # Per-team Loki log stream selectors (stored, pending API support)
+│   │   └── ResourcePermission.yaml # Datasource-level team/SA access assignments
+│   └── templates/                  # Generic Helm templates — no changes needed for normal ops
+│       ├── _helpers.tpl            # Shared labels and instanceSelector helpers
+│       ├── Grafana.yaml            # Grafana CR pointing to external Grafana Cloud instance
+│       ├── GrafanaFolder.yaml      # Iterates values/GrafanaFolder.yaml → GrafanaFolder CRs
+│       ├── GrafanaServiceAccount.yaml  # Iterates values/GrafanaServiceAccount.yaml
+│       ├── GrafanaDatasource.yaml  # Iterates values/GrafanaDatasource.yaml
+│       ├── Team.yaml               # Iterates values/Team.yaml → GrafanaManifest/Team CRs
+│       ├── TeamLBACRule.yaml       # Iterates values/TeamLBACRule.yaml → GrafanaManifest/TeamLBACRule CRs
+│       ├── ResourcePermission.yaml # Iterates values/ResourcePermission.yaml
+│       ├── GrafanaDashboard.yaml   # Auto-discovers chart/dashboards/**/*.json
+│       └── GrafanaAlertRuleGroup.yaml  # Auto-discovers chart/alerts/**/*.yaml
+│
+├── chart/dashboards/               # (Optional) Place dashboard JSON files here to auto-provision
+│   └── <folder-uid>/              # Directory name must match a folder UID in GrafanaFolder.yaml
+│       └── my-dashboard.json
+│
+├── chart/alerts/                   # (Optional) Place alert rule group YAML files here
+│   └── <folder-uid>/              # Directory name must match a folder UID in GrafanaFolder.yaml
+│       └── my-alerts.yaml
 │
 ├── deploy/
 │   ├── argocd/
-│   │   └── application.yaml      # Argo CD Application CR (Option A)
-│   ├── install.sh                # One-shot bootstrap script (local/CI)
-│   └── operator-values.yaml      # Grafana Operator Helm values
+│   │   └── application.yaml        # Argo CD Application CR (Option A delivery)
+│   ├── install.sh                  # One-shot bootstrap: installs operator + platform chart
+│   └── operator-values.yaml        # Grafana Operator Helm values (log level, resync, etc.)
 │
 ├── .github/
-│   ├── CODEOWNERS
-│   ├── dependabot.yml
+│   ├── CODEOWNERS                  # Require review from platform team on all changes
+│   ├── dependabot.yml              # Auto-bump GitHub Actions versions
 │   └── workflows/
-│       ├── validate.yaml         # PR/push: lint + policy + template validation
-│       ├── onboard.yaml          # Manual: add/remove teams, folders, service accounts, LBAC rules
-│       ├── sync.yaml             # Automatic: Argo CD-free GitOps sync on push to main
-│       └── drift-detection.yaml  # Nightly: full chart integrity and policy check
+│       ├── validate.yaml           # PR + push: YAML lint, credential scan, OPA policy, Helm lint
+│       ├── onboard.yaml            # Manual: form-driven add/remove of teams, folders, SAs, LBAC rules
+│       ├── sync.yaml               # Push to main: Argo CD-free direct cluster apply
+│       └── drift-detection.yaml    # Nightly: chart integrity + policy check, opens Issue on failure
 │
 ├── policy/
-│   └── security.rego             # Conftest/OPA guardrails (enforced in CI)
+│   └── security.rego               # Conftest/OPA guardrails enforced in all CI workflows
 │
-└── Makefile                      # Local developer commands
+└── Makefile                        # Local developer shortcuts: validate, render, install, sync, help
 ```
 
 ---
 
 ## How It Works
 
-1. **All resources are values, not templates.** You add/edit resources by editing YAML files under `chart/values/`. The Helm templates in `chart/templates/` are generic and never need touching.
+1. **Values-driven, not template-driven.** Day-to-day operations mean editing YAML files under `chart/values/`. The Helm templates in `chart/templates/` are generic and intentionally never need changing.
 
-2. **Dashboards and alert groups are auto-discovered.** Drop a JSON file under `chart/dashboards/<folder-uid>/` or a YAML file under `chart/alerts/<folder-uid>/` and it will be provisioned automatically — zero template changes required.
+2. **Dashboards and alert groups are auto-discovered.** Drop a `.json` file under `chart/dashboards/<folder-uid>/` or a `.yaml` file under `chart/alerts/<folder-uid>/` and it is provisioned automatically with zero template changes.
 
-3. **CI validates every change.** On every PR and push, GitHub Actions runs YAML linting, Helm lint + template rendering, and OPA/Conftest policy checks.
+3. **CI validates every change.** On every PR and push, GitHub Actions runs YAML linting, a hardcoded credential scanner, Helm lint + template render, and OPA policy checks via Conftest.
 
-4. **Delivery is via Argo CD or GitHub Actions.** Choose one depending on your infrastructure.
+4. **Two delivery paths.** Choose Argo CD for full GitOps continuous reconciliation, or use the GitHub Actions `sync.yaml` workflow for a zero-dependency cluster apply.
 
-5. **LBAC rules are applied via Grafana REST API.** The Grafana Operator's `GrafanaManifest/TeamLBACRule` path returns HTTP 500 from Grafana Cloud's `v0alpha1` API (a known upstream limitation). The sync workflow applies LBAC rules directly via `PUT /api/datasources/uid/{uid}/lbac/teams` instead.
+5. **Human-friendly names everywhere.** All resource UIDs, folder names, team slugs, and service account names are readable strings — no random suffixes.
 
 ---
 
 ## Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| `kubectl` | ≥ 1.28 | Kubernetes cluster management |
-| `helm` | ≥ 3.12 | Chart rendering and installation |
-| `make` | any | Local developer shortcuts |
-| Kubernetes cluster | any | Grafana Operator runtime |
+| Tool | Minimum Version | Purpose |
+|------|----------------|---------|
+| `kubectl` | 1.28 | Cluster management |
+| `helm` | 3.12 | Chart rendering and install |
+| Kubernetes cluster | any | Runs the Grafana Operator |
 | Grafana Cloud stack | any | Target Grafana instance |
 | Grafana Service Account Token | `Admin` role | Operator authentication |
 
@@ -159,7 +157,7 @@ kubectl -n grafana-operator-configs create secret generic grafanacloud-credentia
   --from-literal=GRAFANA_API_KEY="<your-service-account-token>"
 ```
 
-> **Important:** The service account token must have `Admin` role in Grafana Cloud. Keep this secret managed outside of Git (use your secrets manager of choice).
+> **Important:** The token must belong to a service account with `Admin` role on your Grafana Cloud stack. Keep this secret out of Git — use your approved secrets manager (External Secrets Operator, Vault, etc.).
 
 ### 2. Run the bootstrap installer
 
@@ -169,12 +167,12 @@ GRAFANA_TOKEN="glsa_..." \
 ./deploy/install.sh
 ```
 
-This installs the Grafana Operator and deploys the platform chart in one step.
+This installs the Grafana Operator via Helm and deploys the platform chart in one idempotent step.
 
 ### 3. Verify
 
 ```bash
-kubectl get grafana,grafanafolder,grafanateam,grafanaserviceaccount,grafanadatasource \
+kubectl get grafana,grafanafolder,grafanaserviceaccount,grafanadatasource,grafanamanifest \
   -n grafana-operator-configs
 ```
 
@@ -184,97 +182,91 @@ kubectl get grafana,grafanafolder,grafanateam,grafanaserviceaccount,grafanadatas
 
 ### Option A — Argo CD (Recommended)
 
-Argo CD continuously watches the repository and reconciles changes automatically.
+Argo CD continuously watches the repository and reconciles every push automatically.
 
-**Install the Application:**
+**Install:**
 
 ```bash
 kubectl apply -f deploy/argocd/application.yaml
 ```
 
-**How it works:**
-- `syncPolicy.automated` with `prune: true` and `selfHeal: true` means Argo CD syncs on every git push and removes resources no longer in Git.
-- Uses `ServerSideApply=true` for clean conflict resolution.
+**Configuration:** [`deploy/argocd/application.yaml`](deploy/argocd/application.yaml) uses:
+- `syncPolicy.automated` with `prune: true` and `selfHeal: true`
+- `syncOptions: [ServerSideApply=true]` for clean field-manager conflict resolution
+- All values files are listed under `helm.valueFiles`
 
-**Required secrets in the cluster:**
-- `grafana-operator-configs/grafanacloud-credentials` — Grafana API token.
-
-> **LBAC Note:** After Argo CD syncs, LBAC rules still need to be applied via the Grafana REST API (the Kubernetes `TeamLBACRule` API path is not stable on Grafana Cloud). Run the `sync.yaml` workflow manually or add a post-sync hook.
+**Required cluster secrets:**
+- `grafana-operator-configs/grafanacloud-credentials` — Grafana Admin API token
 
 ---
 
 ### Option B — GitHub Actions (Argo CD Free)
 
-No external CD tool required. The `sync.yaml` workflow renders the chart and applies manifests directly to your cluster via `kubectl`.
+No external CD tool required. The `sync.yaml` workflow renders the Helm chart and applies manifests to your cluster via `kubectl` on every push to `main` that touches chart files.
 
-**Required GitHub Secrets / Variables:**
+**Setup — add these to your GitHub repository:**
 
-| Name | Type | Value |
-|------|------|-------|
-| `KUBECONFIG` | Secret | Base64-encoded kubeconfig with cluster access |
-| `GRAFANA_API_KEY` | Secret | Grafana Cloud service account token (`Admin` role) |
+| Name | Location | Value |
+|------|----------|-------|
+| `KUBECONFIG` | Secret | `base64 < ~/.kube/config` |
+| `GRAFANA_API_KEY` | Secret | Grafana Cloud Admin service account token |
 | `GRAFANA_URL` | Variable | `https://your-stack.grafana.net` |
 
-**Setup:**
-
+**Steps:**
 1. Encode your kubeconfig: `base64 < ~/.kube/config | pbcopy`
-2. Add `KUBECONFIG`, `GRAFANA_API_KEY` as repository secrets in GitHub.
-3. Add `GRAFANA_URL` as a repository variable.
-4. Create a GitHub Actions environment named `production` (optional, for approval gates).
-5. Push a change to `chart/**` — the `sync.yaml` workflow fires automatically.
+2. Add `KUBECONFIG` and `GRAFANA_API_KEY` under **Settings → Secrets and variables → Actions → Secrets**
+3. Add `GRAFANA_URL` under **Settings → Secrets and variables → Actions → Variables**
+4. Optionally create a GitHub Actions **environment** named `production` for approval gates
+5. Push any change under `chart/` — `sync.yaml` fires automatically
 
-**What it does:**
-1. Installs/upgrades the Grafana Operator via Helm.
-2. Renders the chart with `helm template`.
-3. Applies manifests with `kubectl apply --server-side`.
-4. Prunes resources removed from Git.
-5. Applies Loki LBAC rules via the Grafana REST API.
+**What the workflow does:**
+1. Installs/upgrades the Grafana Operator via Helm (`--wait`)
+2. Renders the full chart with `helm template`
+3. Applies all manifests with `kubectl apply --server-side --force-conflicts`
+4. Prunes resources no longer in Git with `--prune`
+5. Prints a summary of all CRs in the namespace
 
 ---
 
 ## Operations Guide
 
-All routine changes are made by editing values files. After editing, commit and push — CI validates and the chosen delivery method deploys.
+All changes are made by editing values files under `chart/values/`. Commit and push to trigger CI validation and deployment.
 
-For common operations, you can also use the **Automated Resource Onboarding** GitHub Actions workflow (`onboard.yaml`) via the GitHub UI without touching YAML directly.
+For common operations you can also use the **Automated Resource Onboarding** GitHub Actions workflow (`onboard.yaml`) — a form-driven interface in the GitHub UI that edits the values files and opens a commit for you.
 
 ---
 
 ### Add a Team
 
-**Edit `chart/values/Team.yaml`:**
+**Edit [`chart/values/Team.yaml`](chart/values/Team.yaml):**
 
 ```yaml
 teams:
   - name: "Payments Team"           # Display name in Grafana
-    slug: payments                   # Unique identifier (no spaces)
+    slug: payments                   # Unique identifier — no spaces, used in all references
     owner: traiana                   # Label for ownership tracking
-    roles:                           # Optional: fixed RBAC roles
+    roles:                           # Optional: fine-grained RBAC roles
       - fixed:dashboards:reader
       - fixed:datasources:explorer
-    syncGroups:                      # Optional: Azure AD Group Object IDs
+    syncGroups:                      # Optional: Azure AD Group Object IDs for SSO sync
       - "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-**Or use the GitHub Actions workflow:**
-1. Go to **Actions → Automated Resource Onboarding → Run workflow**
-2. Set `resource_type: team`, `name: Payments Team`, `slug: payments`
-3. Optionally add `roles` and `sync_groups`
-
-> If the team needs Loki log access, also add an LBAC rule (see below) and add the team to `ResourcePermission.yaml`.
+**Via GitHub Actions form:**
+Go to **Actions → Automated Resource Onboarding → Run workflow**, set `resource_type: team`, fill in `name`, `slug`, and optionally `roles` / `sync_groups`.
 
 ---
 
 ### Add a Folder
 
-**Edit `chart/values/GrafanaFolder.yaml`:**
+**Edit [`chart/values/GrafanaFolder.yaml`](chart/values/GrafanaFolder.yaml):**
 
 ```yaml
 folders:
   - title: "Payments Dashboards"
-    uid: "folder-payments"           # Stable, human-readable UID
-    parentUid: "osttra"              # Parent folder (omit for top-level)
-    owner: "payments"               # Which team manages it
+    uid: "folder-payments"           # Stable, human-readable UID (used in dashboard/alert auto-discovery)
+    parentUid: "osttra"              # Parent folder UID (omit for top-level)
+    owner: "payments"
     permissions:
       - role: "Viewer"
         permission: 1               # 1=View, 2=Edit, 4=Admin
@@ -282,117 +274,107 @@ folders:
         permission: 4               # Owner team gets Admin
 ```
 
-**Or use the GitHub Actions workflow:**
-1. Go to **Actions → Automated Resource Onboarding → Run workflow**
-2. Set `resource_type: folder`, `name: Payments Dashboards`, `slug: folder-payments`, `owner: payments`
+**Via GitHub Actions form:**
+Set `resource_type: folder`, `name: Payments Dashboards`, `slug: folder-payments`, `owner: payments`.
 
 ---
 
 ### Add a Service Account
 
-**Edit `chart/values/GrafanaServiceAccount.yaml`:**
+**Edit [`chart/values/GrafanaServiceAccount.yaml`](chart/values/GrafanaServiceAccount.yaml):**
 
 ```yaml
 serviceAccounts:
-  - name: "payments-dashboard-reader"
-    role: "None"                      # Always None — use fixedRoles for permissions
+  - name: "payments-reader"
+    role: "None"                      # Always None — use fixedRoles for least-privilege access
     owner: "payments"
-    fixedRoles:                       # Fine-grained RBAC roles
+    fixedRoles:
       - fixed:dashboards:reader
       - fixed:datasources:explorer
-    secretName: "payments-sa-token"   # Kubernetes secret to store the generated token
+    secretName: "payments-reader-token"   # Kubernetes secret where the token is stored
 ```
 
-**Or use the GitHub Actions workflow:**
-1. Go to **Actions → Automated Resource Onboarding → Run workflow**
-2. Set `resource_type: service_account`, `name: payments-dashboard-reader`, `slug: payments-sa`
-3. Optionally add `roles: fixed:dashboards:reader,fixed:datasources:explorer`
+**Via GitHub Actions form:**
+Set `resource_type: service_account`, `name: payments-reader`, `slug: payments-reader`, optionally `roles: fixed:dashboards:reader`.
 
 ---
 
 ### Add a Loki LBAC Rule
 
-LBAC (Label-Based Access Control) restricts which Loki log streams a team can query.
+Loki LBAC (Label-Based Access Control) restricts which log streams a team can query. The rules are declared in `TeamLBACRule.yaml` and will be applied automatically once the Grafana Operator's `TeamLBACRule` Kubernetes API path reaches general availability on Grafana Cloud.
 
-**Step 1 — Edit `chart/values/TeamLBACRule.yaml`:**
+> **Current status:** The `iam.grafana.app/v0alpha1` `TeamLBACRule` API endpoint returns HTTP 500 from Grafana Cloud (an upstream pre-GA limitation). The CRs are stored in the cluster and will reconcile correctly once the API reaches stable. Track progress: [grafana-operator GitHub](https://github.com/grafana/grafana-operator).
+
+**Step 1 — Edit [`chart/values/TeamLBACRule.yaml`](chart/values/TeamLBACRule.yaml):**
 
 ```yaml
 lbacRules:
-  - name: payments                           # Must match team slug
-    team: payments                           # Team slug
+  - name: payments
+    team: payments                              # Must match team slug
     datasource: grafanacloud-cosmicsatish-logs-lbac
-    selector: '{ business_unit="payments" }' # LogQL stream selector
+    selector: '{ business_unit="payments" }'   # LogQL stream selector
 ```
 
-**Step 2 — Grant query permission in `chart/values/ResourcePermission.yaml`:**
+**Step 2 — Grant query permission in [`chart/values/ResourcePermission.yaml`](chart/values/ResourcePermission.yaml):**
 
 ```yaml
 datasourcePermissions:
   - name: datasource-permissions-grafanacloud-logs-lbac
     assignments:
-      # ...existing entries...
       - team: payments
         permission: Query
 ```
-
-**Or use the GitHub Actions workflow:**
-1. Go to **Actions → Automated Resource Onboarding → Run workflow**
-2. Set `resource_type: team`, `name: Payments Team`, `slug: payments`
-3. Set `selector: { business_unit="payments" }` — LBAC rule and permission are added automatically.
-
-> **Note:** LBAC rules are applied via the Grafana REST API in the `sync.yaml` workflow step. They are not managed through the Kubernetes `TeamLBACRule` CR path (which has an upstream API limitation in Grafana Cloud).
 
 ---
 
 ### Add a Dashboard
 
-1. Create a folder entry in `chart/values/GrafanaFolder.yaml` if it doesn't exist.
-2. Export your dashboard JSON from Grafana UI (Share → Export → Save to file).
+1. Ensure the target folder exists in `chart/values/GrafanaFolder.yaml`.
+2. Export the dashboard JSON from Grafana UI (**Share → Export → Save to file**).
 3. Place the JSON under `chart/dashboards/<folder-uid>/my-dashboard.json`.
-4. Push. The `GrafanaDashboard.yaml` template auto-discovers it.
+4. Push — the `GrafanaDashboard.yaml` template auto-discovers and provisions it.
 
-Example structure:
 ```
 chart/dashboards/
-└── folder-payments/              # Must match a folder UID
+└── folder-payments/          # Must match a folder UID in GrafanaFolder.yaml
     └── payments-overview.json
 ```
 
-The dashboard will be provisioned in the folder matching the directory name.
+Dashboards are provisioned with `editable: true` — teams can refine them in the UI.
 
 ---
 
 ### Add Alert Rule Groups
 
-1. Export your alert group YAML from Grafana UI or create one manually.
-2. Set `folderUID` in the file to match a folder UID defined in `GrafanaFolder.yaml`.
-3. Place the file under `chart/alerts/<folder-uid>/my-alerts.yaml`.
-4. Push. The `GrafanaAlertRuleGroup.yaml` template auto-discovers it.
+1. Ensure the target folder exists in `chart/values/GrafanaFolder.yaml`.
+2. Place the alert rule YAML under `chart/alerts/<folder-uid>/my-alerts.yaml`.
+3. The file must declare the `folderUID` matching the parent directory name.
+4. Push — the `GrafanaAlertRuleGroup.yaml` template auto-discovers and provisions it.
 
-Example file format (`chart/alerts/folder-payments/critical.yaml`):
 ```yaml
+# chart/alerts/folder-payments/critical.yaml
 folderUID: folder-payments
 name: payments-critical
 interval: 1m
 rules:
-  - uid: my-rule-uid
+  - uid: some-stable-uid
     title: PaymentServiceDown
     condition: threshold
-    # ...
+    data: [...]
 ```
 
-> Alert rules are provisioned with `editable: true` so they can be modified in the Grafana UI without provenance locks.
+Alert groups are provisioned with `editable: true` — no provenance lock.
 
 ---
 
 ### Remove a Resource
 
-**Via GitHub Actions workflow:**
+**Via GitHub Actions form:**
 1. Go to **Actions → Automated Resource Onboarding → Run workflow**
-2. Set `action: remove`, type the appropriate `slug`/`name`
+2. Set `action: remove` and fill in `slug`/`name`
 3. Type `DELETE` in the `confirm_delete` safety field
 
-**Manually:** Delete the relevant entry from the values file, commit, and push. The delivery mechanism (Argo CD or GitHub Actions `sync.yaml` with `--prune`) will clean up the resource from the cluster and Grafana Cloud.
+**Manually:** Delete the entry from the relevant values file, commit, and push. Argo CD (with `prune: true`) or the `sync.yaml` workflow (with `--prune`) will remove the Kubernetes CR and Grafana Cloud resource automatically.
 
 ---
 
@@ -400,127 +382,114 @@ rules:
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `validate.yaml` | PR + push to `main` | YAML lint, credential scan, OPA policy, Helm lint + template |
-| `onboard.yaml` | Manual (`workflow_dispatch`) | Add/remove teams, folders, service accounts, LBAC rules via form UI |
-| `sync.yaml` | Push to `main` (chart changes) + manual | Argo CD-free: render chart, apply to cluster, apply LBAC via REST API |
-| `drift-detection.yaml` | Nightly at 02:00 UTC + manual | Full chart render + policy check; opens a GitHub Issue on failure |
+| [`validate.yaml`](.github/workflows/validate.yaml) | PR + push to `main` | YAML lint, credential scan, OPA policy, Helm lint + template render |
+| [`onboard.yaml`](.github/workflows/onboard.yaml) | Manual (`workflow_dispatch`) | Form-driven add/remove for teams, folders, service accounts, LBAC rules |
+| [`sync.yaml`](.github/workflows/sync.yaml) | Push to `main` (chart changes) + manual | Argo CD-free: render chart, apply to cluster via `kubectl` |
+| [`drift-detection.yaml`](.github/workflows/drift-detection.yaml) | Nightly 02:00 UTC + manual | Full chart render + policy check; opens GitHub Issue on failure |
 
-### Required Secrets (for `sync.yaml`)
-
-Set these in **GitHub → Settings → Secrets and variables → Actions**:
+### Secrets and Variables required for `sync.yaml`
 
 | Name | Type | Description |
 |------|------|-------------|
-| `KUBECONFIG` | Secret | `base64 < ~/.kube/config` |
-| `GRAFANA_API_KEY` | Secret | Grafana Cloud service account token |
-| `GRAFANA_URL` | Variable | e.g. `https://cosmicsatish.grafana.net` |
+| `KUBECONFIG` | Secret | Base64-encoded kubeconfig for cluster access |
+| `GRAFANA_API_KEY` | Secret | Grafana Cloud Admin service account token |
+| `GRAFANA_URL` | Variable | `https://your-stack.grafana.net` |
 
 ---
 
 ## Policy Guardrails
 
-Conftest with OPA policies (`policy/security.rego`) enforces:
+All CI runs execute Conftest against `policy/security.rego`. Current rules:
 
-| Rule | Description |
-|------|-------------|
+| Rule | What it enforces |
+|------|-----------------|
 | No `Admin` base role on service accounts | Must use `role: None` + `fixedRoles` |
 | No `Editor` base role on service accounts | Must use `role: None` + `fixedRoles` |
-| Token expiry required | Service accounts must specify `tokenExpires` |
+| Token expiry required | Every service account must specify `tokenExpires` |
 | Folder UID required | Every folder must have a stable `uid` field |
 | Team slug required | Every team must have a `slug` identifier |
 
-Violations block the PR from merging.
-
-### Add a new policy
-
-Edit `policy/security.rego`. Example — deny teams without an owner:
-
-```rego
-deny[msg] {
-    team := input.teams[_]
-    not team.owner
-    msg := sprintf("Policy Violation: Team '%v' must have an owner field.", [team.name])
-}
-```
+Violations block the PR. To add a new policy, edit [`policy/security.rego`](policy/security.rego).
 
 ---
 
 ## Known Limitations
 
-### LBAC via Kubernetes TeamLBACRule API returns HTTP 500
+### Loki LBAC via `TeamLBACRule` Kubernetes API (pending GA)
 
-The `GrafanaManifest/TeamLBACRule` resource type posts to `iam.grafana.app/v0alpha1` Kubernetes-style API on Grafana Cloud. This endpoint returns `HTTP 500 Internal Server Error` for `GET` calls (the operator checks existence before creating), meaning LBAC rules cannot be applied through the operator's manifest controller path.
+The Grafana Operator syncs `TeamLBACRule` resources through the `iam.grafana.app/v0alpha1` Kubernetes-style API on Grafana Cloud. This endpoint currently returns `HTTP 500 Internal Server Error` — it is a pre-GA API. The CRs apply cleanly to the cluster and will automatically reconcile to Grafana Cloud once Grafana promotes this API to stable.
 
-**Workaround (already implemented):** The `sync.yaml` GitHub Actions workflow applies LBAC rules directly via the stable Grafana REST API:
-```
-PUT /api/datasources/uid/{datasource-uid}/lbac/teams
-```
+LBAC rules are intentionally stored in `chart/values/TeamLBACRule.yaml` now so that the configuration is ready and version-controlled. No action needed beyond keeping the values file up to date.
 
-**If using Argo CD only:** Run the `sync.yaml` workflow manually after each sync, or trigger it as a post-sync hook.
+### `ResourcePermission` and `TeamLBACRule` GrafanaManifest errors in operator logs
 
-### GrafanaManifest/ResourcePermission also returns HTTP 500
-
-Same upstream limitation as LBAC. Datasource-level team permissions (`ResourcePermission`) also fail through the manifest controller. These are managed through a combination of Grafana Cloud native team permissions and the REST API.
+For the same reason, `GrafanaManifest` resources of kind `ResourcePermission` also report `applying resource: fetching existing resource: unknown` in operator logs. This is expected and non-breaking — all other resource types (folders, teams, service accounts, datasources, dashboards, alert groups) reconcile correctly.
 
 ---
 
 ## Troubleshooting
 
 ### Check operator logs
+
 ```bash
 kubectl logs -n grafana-operator deploy/grafana-operator --tail=100 -f
 ```
 
-### Check CR sync status
+### Check resource sync status
+
 ```bash
-# Folders
-kubectl get grafanafolder -n grafana-operator-configs -o wide
+# All resources at a glance
+kubectl get grafana,grafanadatasource,grafanafolder,grafanaserviceaccount,grafanamanifest \
+  -n grafana-operator-configs
 
-# Service accounts
-kubectl get grafanaserviceaccount -n grafana-operator-configs -o wide
-
-# Manifests (teams, LBAC, permissions)
-kubectl get grafanamanifest -n grafana-operator-configs -o wide
-
-# Alert groups
-kubectl get grafanaalertrulegroup -n grafana-operator-configs -o wide
-
-# Datasources
-kubectl get grafanadatasource -n grafana-operator-configs -o wide
+# Describe a specific resource for events and status conditions
+kubectl describe grafanafolder <folder-name> -n grafana-operator-configs
+kubectl describe grafanamanifest <team-name>-team -n grafana-operator-configs
 ```
 
-### Check a specific resource status
+### Check alert group sync status
+
 ```bash
-kubectl describe grafanafolder <folder-name> -n grafana-operator-configs
+kubectl get grafanaalertrulegroup -n grafana-operator-configs
+kubectl describe grafanaalertrulegroup <name> -n grafana-operator-configs
 ```
 
 ### Validate chart locally
+
 ```bash
-make validate
+make validate    # YAML lint + Helm lint + template render
+make render      # Print full rendered manifest to stdout
+make help        # List all available make targets
 ```
 
-### Render chart to inspect manifests
-```bash
-make render
-```
+### Force Argo CD resync
 
-### Force a resync via Argo CD
 ```bash
 kubectl -n argocd annotate application grafana-admin-platform \
   argocd.argoproj.io/refresh=hard --overwrite
 ```
 
-### Force a resync via GitHub Actions
-Run the **GitOps Sync (Argo CD Free)** workflow manually from the Actions tab.
+### Force GitHub Actions sync
 
-### Secret not found error in operator
-Ensure `grafanacloud-credentials` secret exists in the **same namespace as the Grafana CR**:
+Run the **GitOps Sync (Argo CD Free)** workflow manually from the **Actions** tab.
+
+### Secret not found in operator logs
+
+Ensure the secret is in the **same namespace as the `Grafana` CR**:
+
 ```bash
 kubectl get secret grafanacloud-credentials -n grafana-operator-configs
-```
-
-If missing:
-```bash
+# If missing:
 kubectl -n grafana-operator-configs create secret generic grafanacloud-credentials \
   --from-literal=GRAFANA_API_KEY="<your-token>"
+```
+
+### Stale `Grafana` CR in wrong namespace
+
+If the operator logs show authentication errors from a different namespace, check for stale CRs:
+
+```bash
+kubectl get grafana -A
+# Delete any stale instances in the wrong namespace
+kubectl delete grafana grafanacloud-osttra -n default
 ```

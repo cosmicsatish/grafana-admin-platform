@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Process Resource Mutation using native yq
         env:
@@ -177,7 +177,7 @@ jobs:
           fi
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@v4
 
       - name: Validate Syntax & Linting
         run: |
@@ -186,7 +186,7 @@ jobs:
 
       - name: Install Conftest
         run: |
-          curl -sL https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz | sudo tar xz -C /usr/local/bin conftest
+          curl -sL https://github.com/open-policy-agent/conftest/releases/download/v0.59.0/conftest_0.59.0_Linux_x86_64.tar.gz | sudo tar xz -C /usr/local/bin conftest
 
       - name: Run Conftest Policy Guardrails
         run: conftest test chart/values/*.yaml -p policy/
