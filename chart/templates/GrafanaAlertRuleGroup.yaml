@@ -17,6 +17,7 @@ spec:
   folderUID: {{ $content.folderUID | default $folderUID | quote }}
   name: {{ $content.name | default $baseName | quote }}
   interval: {{ $content.interval | default "1m" | quote }}
+  editable: true
   rules:
     {{- toYaml $content.rules | nindent 4 }}
 {{- end }}
