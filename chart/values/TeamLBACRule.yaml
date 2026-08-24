@@ -3,127 +3,102 @@ lbacRules:
     team: sre
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit!="reset", business_unit!="trioptima", business_unit!="osttra" }'
-
   - name: dbs-leads
     team: dbs-leads
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit!="", business_unit!="reset", business_unit!="trioptima", business_unit!="osttra" }'
-
   - name: dbs-contributors
     team: dbs-contributors
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit!="", business_unit!="reset", business_unit!="trioptima", business_unit!="osttra" }'
-
   - name: dbs-contributors-k8s
     team: dbs-contributors
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ cluster="observability-prod", namespace=~"grafanacloud-config|grafana-operator|flux-system" }'
-
   - name: toc
     team: toc
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit!="reset", business_unit!="trioptima", business_unit!="osttra" }'
-
   - name: application-support
     team: application-support
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="applicationsupport" }'
-
   - name: cyber-security-team
     team: cyber-security-team
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="cybersecurity" }'
-
   - name: database-readonly
     team: database-readonly
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="database" }'
-
   - name: fortimail
     team: fortimail
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="fortimail" }'
-
   - name: jigsaw-monitoring
     team: jigsaw-monitoring
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="jigsaw" }'
-
   - name: network
     team: network
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="network" }'
-
   - name: operation-automation
     team: operation-automation
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="operation-automation" }'
-
   - name: optapi
     team: optapi
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="optapi" }'
-
   - name: pengraven
     team: pengraven
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="pengraven" }'
-
   - name: private-cloud
     team: private-cloud
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="privatecloud" }'
-
   - name: reset
     team: reset
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="reset" }'
-
   - name: sys-admins-linux
     team: sys-admins-linux
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="osttra", product_name="sysadmin-linux" }'
-
   - name: traiana-connectivity-dev
     team: traiana-connectivity-dev
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="traiana", product_name="connectivity" }'
-
   - name: traiana-credit-dev
     team: traiana-credit-dev
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="traiana", product_name="credit" }'
-
   - name: traiana-fx-dev
     team: traiana-fx-dev
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="traiana", product_name="fx" }'
-
   - name: tribalance
     team: tribalance
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="tribalance" }'
-
   - name: tricalculate
     team: tricalculate
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="tricalculate" }'
-
   - name: triqa
     team: triqa
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="triqa" }'
-
   - name: trireduce
     team: trireduce
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="trireduce" }'
-
   - name: triresolve-core
     team: triresolve-core
     datasource: grafanacloud-cosmicsatish-logs-lbac
     selector: '{ business_unit="trioptima", product_name="triresolve-core" }'
-
   - name: triresolve-margin
     team: triresolve-margin
     datasource: grafanacloud-cosmicsatish-logs-lbac
