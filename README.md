@@ -1,122 +1,68 @@
-# Grafana Administration Platform
+# Grafana Admin Platform GitOps
 
-Production-oriented, 100% declarative GitOps platform managing **Teams**, **Azure AD (Entra ID) Group Sync**, **Parent/Child Folders & Permissions**, **Fine-Grained Fixed RBAC Roles**, **Loki Log-Based Access Control (LBAC)**, **Service Accounts**, and **Automated Self-Service Resource Onboarding** via **Flux CD**, **Helm**, and the **Grafana Operator** (with zero custom scripts).
+Enterprise declarative GitOps management platform for **Grafana Cloud** utilizing **Argo CD** and the official **Grafana Operator (`v5.24.0`)**.
 
 ---
 
-## 1. Core GitOps Architecture
+## 🏛️ Architecture Overview
 
-In pure GitOps, GitHub Actions validates pull requests and commits in seconds, while **Flux CD** running inside your Kubernetes cluster synchronizes the desired state to Grafana Cloud:
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       SELF-SERVICE ONBOARDING / VALUES                      │
-│   - GitHub Actions UI: Automated Resource Onboarding (onboard.yaml via yq)  │
-│   - Modular Values: Team.yaml | GrafanaFolder.yaml | ServiceAccount.yaml    │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼ (PR Policy Guardrails / Conftest - 5s)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       AUTOMATED CI GOVERNANCE & CHECKS                      │
-│   - Conftest / OPA Security Rules (policy/security.rego)                    │
-│   - Dependabot Operator Upgrade Watch (.github/dependabot.yml)              │
-│   - Nightly Drift & Integrity Detection (.github/workflows/drift-detection)│
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼ (Git Commit & Push to main)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          GITHUB GITOPS REPOSITORY                           │
-│              https://github.com/cosmicsatish/grafana-admin-platform         │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼ (Flux CD In-Cluster Automated Sync)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       FLUX CD / KUBERNETES CLUSTER                          │
-│   - Namespace: grafana-operator-configs                                     │
-│   - HelmRelease: grafana-admin-platform (via GitRepository source)          │
-│   - Instance: grafanacloud-osttra (Selector: dashboards: osttra)            │
-│   - Secret: grafanacloud-credentials (Key: GRAFANA_API_KEY)                 │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼ (Reconciles against Grafana API)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         GRAFANA CLOUD INSTANCE                              │
-│                    https://cosmicsatish.grafana.net                         │
-│   - Osttra Root Folder with 41 Nested Child Folders                         │
-│   - Dedicated Team Ownership (Permission: 4 / Admin)                        │
-│   - Teams Synchronized with Azure AD Group Object IDs                       │
-│   - Fine-Grained Fixed RBAC Roles Assigned to Teams & Service Accounts      │
-│   - Official Operator Observability Dashboard (ID: 22785)                   │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Git[Git Repository: chart/values/*.yaml] -->|Sync| ArgoCD[Argo CD Application Controller]
+    ArgoCD -->|Deploy Helm Chart| Cluster[Kubernetes Kind Cluster]
+    Cluster -->|CRDs: Folders, Dashboards, SAs| Operator[Official Grafana Operator v5.24.0]
+    Operator -->|Reconcile Live State| GrafanaCloud[Grafana Cloud Instance: cosmicsatish.grafana.net]
 ```
 
 ---
 
-## 2. Automated Resource Onboarding (Zero Custom Code)
-
-To onboard, update, or remove resources without manually editing YAML files:
-
-1. Go to **Actions** $\rightarrow$ **Automated Resource Onboarding**.
-2. Click **Run workflow**.
-3. Choose `action` (`add_or_update` or `remove`) and `resource_type` (`team`, `folder`, `service_account`, `lbac_rule`).
-4. Fill in the details. *(Note: If selecting `remove`, you must type `DELETE` in the confirmation box for safety).*
-5. The workflow updates the values file using native `yq`, validates security policies, commits to `main`, and triggers Flux CD synchronization!
-
----
-
-## 3. Directory Layout
+## 📁 Repository Structure
 
 ```text
-.
-├── chart/                              # Pure declarative Helm Chart (0 custom scripts)
-│   ├── Chart.yaml                      # Chart metadata
-│   ├── values.yaml                     # Global instance connection settings
-│   ├── values/                         # Modular values named by official Kind
-│   │   ├── Team.yaml                   # 39+ teams, Azure AD Object IDs, and roles
-│   │   ├── GrafanaFolder.yaml          # Osttra root + 41 nested folders with team ownership
-│   │   ├── TeamLBACRule.yaml           # 26+ Loki LBAC log stream selectors
-│   │   ├── GrafanaServiceAccount.yaml  # Service accounts with role None & fixedRoles
-│   │   └── ResourcePermission.yaml     # Scoped loki-lbac permissions
-│   └── templates/                      # Pure native templates
-│       ├── _helpers.tpl
-│       ├── Grafana.yaml                # External Grafana instance CR (grafanacloud-osttra)
-│       ├── GrafanaDashboard.yaml       # Official Operator Dashboard CR (ID: 22785)
-│       ├── GrafanaFolder.yaml          # GrafanaFolder CRs (with parentFolderUID)
-│       ├── GrafanaServiceAccount.yaml  # GrafanaServiceAccount CRs
-│       ├── Team.yaml                   # GrafanaManifest Team CRs
-│       ├── TeamLBACRule.yaml           # GrafanaManifest TeamLBACRule CRs
-│       └── ResourcePermission.yaml     # GrafanaManifest ResourcePermission CRs
-├── policy/
-│   └── security.rego                   # Conftest / OPA security & compliance guardrails
+├── chart/                              # Master Helm chart
+│   ├── templates/                      # Standardized Kubernetes CRD templates
+│   │   ├── Grafana.yaml                # Target Grafana Cloud Instance CR
+│   │   ├── GrafanaFolder.yaml          # Nested Folders CRs (under Osttra)
+│   │   ├── GrafanaDashboard.yaml       # Grafana Operator Observability Dashboard
+│   │   ├── GrafanaServiceAccount.yaml  # Service Accounts & Dynamic 1-Yr Tokens
+│   │   └── _helpers.tpl                # Standardized label helpers
+│   └── values/                         # Pure Declarative Config (Source of Truth)
+│       ├── Team.yaml                   # 39 Teams & Azure AD Object ID Sync
+│       ├── GrafanaFolder.yaml          # Osttra Root + 41 Nested Folders & Permissions
+│       ├── GrafanaServiceAccount.yaml  # 19 SAs with Fine-Grained Fixed Roles
+│       ├── TeamLBACRule.yaml           # 25 Loki LBAC Stream Selectors
+│       └── ResourcePermission.yaml     # Datasource Query Access Rules
 ├── deploy/
-│   ├── install.sh                      # Cluster bootstrap script (Grafana Operator + HelmRelease)
+│   ├── argocd/                         # Argo CD GitOps Declarations
+│   │   ├── application.yaml            # Argo CD Application
+│   │   └── project.yaml                # Argo CD AppProject
 │   ├── operator-values.yaml            # Grafana Operator Helm configuration
-│   └── flux/
-│       ├── kustomization.yaml          # Flux Kustomization
-│       ├── helm-release.yaml           # Flux HelmRelease applying the chart
-│       └── sources/
-│           └── git-repository.yaml     # Flux GitRepository source
-├── .github/
-│   ├── dependabot.yml                  # Operator & GitHub Actions upgrade watch
-│   └── workflows/
-│       ├── validate.yaml               # Fast 5s PR lint, Conftest policy, & template validation
-│       ├── drift-detection.yaml        # Nightly drift & integrity check
-│       └── onboard.yaml                # Native yq self-service UI onboarding workflow
-├── Makefile                            # make validate, make render, make install
-└── README.md                           # Master platform documentation
+│   └── install.sh                      # Cluster bootstrap script
+└── .github/workflows/
+    ├── validate.yaml                   # Ultra-fast CI validation (9-11s)
+    └── onboard.yaml                    # Automated team onboarding & safety checks
 ```
 
 ---
 
-## 4. Local & Cluster Commands
+## 🚀 Getting Started & Argo CD Web UI
 
+### 1. Access the Argo CD Web UI
 ```bash
-# Validate YAML syntax and lint Helm chart against all values files:
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+- **URL**: Open **[https://localhost:8080](https://localhost:8080)** in your browser.
+- **Username**: `admin`
+- **Password**:
+  ```bash
+  kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo ""
+  ```
+
+---
+
+## 🧪 Validations & CI Pipeline
+
+Run all linting, schema validation, and guardrails locally:
+```bash
 make validate
-
-# Render final Kubernetes manifests to stdout:
-make render
-
-# Deploy / Bootstrap to cluster:
-make install
 ```

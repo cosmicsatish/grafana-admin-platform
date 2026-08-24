@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: grafana-admin
+  namespace: argocd
+spec:
+  description: Grafana Admin Platform GitOps Management
+  sourceRepos:
+    - "https://github.com/cosmicsatish/grafana-admin-platform.git"
+  destinations:
+    - namespace: "grafana-operator-configs"
+      server: "https://kubernetes.default.svc"
+    - namespace: "grafana-operator"
+      server: "https://kubernetes.default.svc"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
