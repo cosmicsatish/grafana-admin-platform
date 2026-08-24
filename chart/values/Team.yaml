@@ -305,8 +305,3 @@ teams:
   roles:
   - fixed:dashboards:reader
   - fixed:datasources:explorer
-- name: my team
-  slug: my-team
-  roles:
-  - fixed:dashboards:reader
-  - fixed:datasources:explorer

@@ -1,88 +1,83 @@
-# ==============================================================================
-# DATASOURCE PERMISSIONS VALUES
-# ==============================================================================
-# Scoped access only for the loki-lbac datasource.
-
 datasourcePermissions:
-  - name: datasource-permissions-grafanacloud-logs-lbac
-    manifestName: loki-lbac-access
-    datasource: grafanacloud-cosmicsatish-logs-lbac
-    assignments:
-      - team: sre
-        permission: Query
-      - team: dbs-leads
-        permission: Query
-      - team: dbs-contributors
-        permission: Query
-      - team: toc
-        permission: Query
-      - team: admins
-        permission: Admin
-      - team: all-viewers
-        permission: Query
-      - team: application-support
-        permission: Query
-      - team: cyber-security-team
-        permission: Query
-      - team: dashboarding-and-alerting
-        permission: Query
-      - team: create-reports
-        permission: Query
-      - team: database-readonly
-        permission: Query
-      - team: editors
-        permission: Query
-      - team: euc
-        permission: Query
-      - team: fortimail
-        permission: Query
-      - team: grafanaadmin
-        permission: Admin
-      - team: group-admins
-        permission: Admin
-      - team: infosec
-        permission: Query
-      - team: jigsaw-monitoring
-        permission: Query
-      - team: network
-        permission: Query
-      - team: nft-team
-        permission: Query
-      - team: operation-automation
-        permission: Query
-      - team: optapi
-        permission: Query
-      - team: pengraven
-        permission: Query
-      - team: private-cloud
-        permission: Query
-      - team: product-management
-        permission: Query
-      - team: reset
-        permission: Query
-      - team: sys-admins-linux
-        permission: Query
-      - team: sys-admins-storage
-        permission: Query
-      - team: sys-admins-windows
-        permission: Query
-      - team: traiana-connectivity-dev
-        permission: Query
-      - team: traiana-credit-dev
-        permission: Query
-      - team: traiana-csm
-        permission: Query
-      - team: traiana-fx-dev
-        permission: Query
-      - team: tribalance
-        permission: Query
-      - team: tricalculate
-        permission: Query
-      - team: triqa
-        permission: Query
-      - team: trireduce
-        permission: Query
-      - team: triresolve-core
-        permission: Query
-      - team: triresolve-margin
-        permission: Query
+- name: datasource-permissions-grafanacloud-logs-lbac
+  manifestName: loki-lbac-access
+  datasource: grafanacloud-cosmicsatish-logs-lbac
+  assignments:
+  - team: sre
+    permission: Query
+  - team: dbs-leads
+    permission: Query
+  - team: dbs-contributors
+    permission: Query
+  - team: toc
+    permission: Query
+  - team: admins
+    permission: Admin
+  - team: all-viewers
+    permission: Query
+  - team: application-support
+    permission: Query
+  - team: cyber-security-team
+    permission: Query
+  - team: dashboarding-and-alerting
+    permission: Query
+  - team: create-reports
+    permission: Query
+  - team: database-readonly
+    permission: Query
+  - team: editors
+    permission: Query
+  - team: euc
+    permission: Query
+  - team: fortimail
+    permission: Query
+  - team: grafanaadmin
+    permission: Admin
+  - team: group-admins
+    permission: Admin
+  - team: infosec
+    permission: Query
+  - team: jigsaw-monitoring
+    permission: Query
+  - team: network
+    permission: Query
+  - team: nft-team
+    permission: Query
+  - team: operation-automation
+    permission: Query
+  - team: optapi
+    permission: Query
+  - team: pengraven
+    permission: Query
+  - team: private-cloud
+    permission: Query
+  - team: product-management
+    permission: Query
+  - team: reset
+    permission: Query
+  - team: sys-admins-linux
+    permission: Query
+  - team: sys-admins-storage
+    permission: Query
+  - team: sys-admins-windows
+    permission: Query
+  - team: traiana-connectivity-dev
+    permission: Query
+  - team: traiana-credit-dev
+    permission: Query
+  - team: traiana-csm
+    permission: Query
+  - team: traiana-fx-dev
+    permission: Query
+  - team: tribalance
+    permission: Query
+  - team: tricalculate
+    permission: Query
+  - team: triqa
+    permission: Query
+  - team: trireduce
+    permission: Query
+  - team: triresolve-core
+    permission: Query
+  - team: triresolve-margin
+    permission: Query
