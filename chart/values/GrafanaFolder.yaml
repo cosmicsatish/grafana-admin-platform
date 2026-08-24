@@ -427,19 +427,3 @@ folders:
         permission: 1
       - team: "triresolve-margin"
         permission: 4
-
-  - title: "Exported Alerts"
-    uid: "exported-alerts"
-    parentUid: "osttra"
-    owner: "platform"
-    permissions:
-      - role: "Viewer"
-        permission: 1
-
-  - title: "Prometheus Consolidated Alerts"
-    uid: "prometheus-consolidated-alerts"
-    parentUid: "osttra"
-    owner: "platform"
-    permissions:
-      - role: "Viewer"
-        permission: 1
