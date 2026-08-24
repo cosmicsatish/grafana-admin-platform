@@ -118,7 +118,7 @@ jobs:
               cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
               name: $SLUG
               team: $SLUG
-              datasource: loki-lbac
+              datasource: grafanacloud-cosmicsatish-logs-lbac
               selector: '$SELECTOR'
               EOF
 
@@ -165,7 +165,7 @@ jobs:
             cat <<EOF | yq -i '.lbacRules += [load("/dev/stdin")]' chart/values/TeamLBACRule.yaml
             name: $SLUG
             team: $TEAM_TARGET
-            datasource: loki-lbac
+            datasource: grafanacloud-cosmicsatish-logs-lbac
             selector: '$SELECTOR'
             EOF
 

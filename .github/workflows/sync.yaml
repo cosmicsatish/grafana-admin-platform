@@ -1,0 +1,147 @@
+name: GitOps Sync (Argo CD Free)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'chart/**'
+      - 'deploy/install.sh'
+      - 'deploy/operator-values.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Render & Apply to Cluster
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Ensure namespaces exist
+        run: |
+          kubectl create namespace grafana-operator --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace grafana-operator-configs --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Ensure Grafana API secret exists
+        run: |
+          if ! kubectl -n grafana-operator-configs get secret grafanacloud-credentials >/dev/null 2>&1; then
+            kubectl -n grafana-operator-configs create secret generic grafanacloud-credentials \
+              --from-literal=GRAFANA_API_KEY="${{ secrets.GRAFANA_API_KEY }}"
+          fi
+
+      - name: Install / Upgrade Grafana Operator
+        run: |
+          helm upgrade --install grafana-operator \
+            oci://ghcr.io/grafana/helm-charts/grafana-operator \
+            --version 5.24.0 \
+            --namespace grafana-operator \
+            --create-namespace \
+            --values deploy/operator-values.yaml \
+            --wait --timeout 3m
+
+      - name: Render Helm chart
+        run: |
+          helm template grafana-admin-platform chart/ \
+            --namespace grafana-operator-configs \
+            -f chart/values/Team.yaml \
+            -f chart/values/GrafanaFolder.yaml \
+            -f chart/values/TeamLBACRule.yaml \
+            -f chart/values/GrafanaServiceAccount.yaml \
+            -f chart/values/ResourcePermission.yaml \
+            -f chart/values/GrafanaDatasource.yaml \
+            --set grafana.url="${{ vars.GRAFANA_URL }}" \
+            --set grafana.secretName="grafanacloud-credentials" \
+            --set grafana.secretKey="GRAFANA_API_KEY" \
+            > /tmp/rendered.yaml
+
+      - name: Apply manifests (server-side apply)
+        run: |
+          kubectl apply \
+            --server-side \
+            --force-conflicts \
+            --namespace grafana-operator-configs \
+            -f /tmp/rendered.yaml
+
+      - name: Prune removed resources
+        run: |
+          kubectl apply \
+            --server-side \
+            --force-conflicts \
+            --prune \
+            --namespace grafana-operator-configs \
+            --selector app.kubernetes.io/instance=grafana-admin-platform \
+            -f /tmp/rendered.yaml
+
+      - name: Apply Loki LBAC rules via REST API
+        env:
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+          GRAFANA_URL: ${{ vars.GRAFANA_URL }}
+        run: |
+          set -euo pipefail
+
+          # Install yq for YAML parsing
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_amd64 \
+            -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+
+          # Fetch datasource UID from Grafana Cloud
+          DS_UID=$(curl -sf \
+            -H "Authorization: Bearer $GRAFANA_API_KEY" \
+            "$GRAFANA_URL/api/datasources/name/grafanacloud-cosmicsatish-logs-lbac" | jq -r '.uid')
+
+          # Build and apply LBAC rules mapping team slug -> team ID -> selectors
+          yq '.lbacRules | map({(.team): [.selector]}) | add' \
+            chart/values/TeamLBACRule.yaml -o json | \
+          python3 - <<'PYEOF'
+          import json, sys, urllib.request, ssl, os
+
+          rules = json.load(sys.stdin)
+          token = os.environ["GRAFANA_API_KEY"]
+          grafana_url = os.environ["GRAFANA_URL"]
+          ds_uid = os.environ.get("DS_UID", "grafanacloud-logs-lbac")
+          ctx = ssl._create_unverified_context()
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+
+          req = urllib.request.Request(f"{grafana_url}/api/teams/search?perpage=500", headers=headers)
+          with urllib.request.urlopen(req, context=ctx) as r:
+              teams = {t["name"].lower(): str(t["id"]) for t in json.loads(r.read()).get("teams", [])}
+
+          output = {}
+          for slug, selectors in rules.items():
+              team_id = teams.get(slug.lower())
+              if team_id:
+                  output[team_id] = selectors
+              else:
+                  print(f"WARNING: team '{slug}' not found in Grafana Cloud", file=sys.stderr)
+
+          payload = json.dumps(output).encode()
+          req = urllib.request.Request(
+              f"{grafana_url}/api/datasources/uid/{ds_uid}/lbac/teams",
+              data=payload,
+              headers={**headers, "Content-Type": "application/json"},
+              method="PUT"
+          )
+          with urllib.request.urlopen(req, context=ctx) as r:
+              print(f"✅ LBAC applied: {r.status} - {r.read().decode()[:100]}")
+          PYEOF
+
+      - name: Verify sync
+        run: |
+          echo "=== Grafana CRs in grafana-operator-configs ==="
+          kubectl get grafana,grafanadatasource,grafanafolder,grafanaserviceaccount,grafanamanifest \
+            -n grafana-operator-configs 2>/dev/null || true
