@@ -122,4 +122,4 @@ jobs:
         run: |
           gh issue create \
             --title "🚨 Live Grafana Cloud Drift Detected" \
-            --body "🚨 Live drift detected between Git repository (\`${{ github.ref }}\`) and Grafana Cloud instance. Please inspect the [Drift Detection Workflow Run](${{ github.server_url }}/${{{ github.repository }}}/actions/runs/${{{ github.run_id }}}) for details."
+            --body "🚨 Live drift detected between Git repository (\`${{ github.ref }}\`) and Grafana Cloud instance. Please inspect the [Drift Detection Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
