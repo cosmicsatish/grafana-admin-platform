@@ -77,7 +77,6 @@ jobs:
           untracked_folders = {uid: title for uid, title in live_folders.items() if uid not in declared_folders and title != "GrafanaCloud"}
           missing_folders = {uid: title for uid, title in declared_folders.items() if uid not in live_folders}
 
-          # Auto-append untracked folders into declarative config
           for uid, title in untracked_folders.items():
               folders_data["folders"].append({
                   "title": title,
@@ -104,7 +103,6 @@ jobs:
           untracked_teams = {name: t for name, t in live_teams.items() if name not in declared_teams}
           missing_teams = {name for name in declared_teams if name not in live_teams}
 
-          # Auto-append untracked teams into declarative config
           for name_lower, t_obj in untracked_teams.items():
               raw_name = t_obj.get("name", name_lower)
               slug = re.sub(r'[^a-z0-9-]', '-', raw_name.lower())
@@ -132,7 +130,6 @@ jobs:
           untracked_sas = {name: s for name, s in live_sas.items() if name not in declared_sas}
           missing_sas = {name for name in declared_sas if name not in live_sas}
 
-          # Auto-append untracked service accounts into declarative config
           for name_lower, sa_obj in untracked_sas.items():
               raw_name = sa_obj.get("name", name_lower)
               slug = re.sub(r'[^a-z0-9-]', '-', raw_name.lower()).strip('-') or 'sa-1'
@@ -183,7 +180,7 @@ jobs:
 
           if total_drifts > 0:
               summary.append("\n---\n### 🤖 Action Taken\n")
-              summary.append("Automated Pull Request has been opened/updated to import the untracked resources into Git so that GitOps (Argo CD) and Grafana Cloud are brought into 100% synchronization.")
+              summary.append("Declarative YAML values have been auto-generated and pushed to branch `drift/auto-reconcile`.\nReview and merge to bring Git and Grafana Cloud into 100% synchronization.")
 
           report_text = "\n".join(summary)
           print(report_text)
@@ -212,7 +209,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if values files were modified
           if git diff --quiet chart/values/; then
             echo "No declarative config modifications to commit."
             exit 0
@@ -225,16 +221,32 @@ jobs:
 
           TITLE="🤖 chore(gitops): auto-reconcile live Grafana Cloud drift into repository"
 
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' || echo "")
+          PR_URL="https://github.com/${{ github.repository }}/compare/main...${BRANCH}?expand=1"
 
-          if [ -z "$EXISTING_PR" ]; then
-            echo "Creating new Pull Request..."
-            gh pr create \
-              --title "$TITLE" \
-              --body-file /tmp/drift_report.md \
-              --base main \
-              --head "$BRANCH"
+          # Attempt to create PR via CLI
+          if gh pr create --title "$TITLE" --body-file /tmp/drift_report.md --base main --head "$BRANCH"; then
+            echo "✅ Pull Request created successfully!"
           else
-            echo "Updating existing Pull Request #$EXISTING_PR..."
-            gh pr edit "$EXISTING_PR" --title "$TITLE" --body-file /tmp/drift_report.md
+            echo "⚠️ PR creation via API blocked by repository settings. Opening notification Issue with direct 1-click PR link..."
+            
+            ISSUE_BODY=$(cat <<EOF
+## 🚨 Live Grafana Cloud Drift Detected & Configurations Reconciled
+
+The live drift detection engine identified untracked resources in Grafana Cloud and has **automatically generated and pushed the matching declarative configuration** to branch \`$BRANCH\`.
+
+### 🔗 1-Click Pull Request Link:
+👉 **[Click Here to Review & Open Pull Request]($PR_URL)**
+
+---
+
+$(cat /tmp/drift_report.md)
+EOF
+)
+            
+            EXISTING_ISSUE=$(gh issue list --state open --search "Live Grafana Cloud Drift Detected" --json number -q '.[0].number' || echo "")
+            if [ -n "$EXISTING_ISSUE" ]; then
+              echo "$ISSUE_BODY" | gh issue comment "$EXISTING_ISSUE" --body-file -
+            else
+              echo "$ISSUE_BODY" | gh issue create --title "🚨 Live Grafana Cloud Drift Detected (1-Click PR Ready)" --body-file -
+            fi
           fi
