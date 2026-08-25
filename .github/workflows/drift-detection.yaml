@@ -1,10 +1,10 @@
 name: Nightly Live Drift & Integrity Detection
 
-on:
+"on":
   schedule:
     # Run nightly at 02:00 UTC
     - cron: '0 2 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -220,7 +220,6 @@ jobs:
           git push origin "$BRANCH" --force
 
           TITLE="🤖 chore(gitops): auto-reconcile live Grafana Cloud drift into repository"
-
           PR_URL="https://github.com/${{ github.repository }}/compare/main...${BRANCH}?expand=1"
 
           # Attempt to create PR via CLI
@@ -229,24 +228,21 @@ jobs:
           else
             echo "⚠️ PR creation via API blocked by repository settings. Opening notification Issue with direct 1-click PR link..."
             
-            ISSUE_BODY=$(cat <<EOF
-## 🚨 Live Grafana Cloud Drift Detected & Configurations Reconciled
-
-The live drift detection engine identified untracked resources in Grafana Cloud and has **automatically generated and pushed the matching declarative configuration** to branch \`$BRANCH\`.
-
-### 🔗 1-Click Pull Request Link:
-👉 **[Click Here to Review & Open Pull Request]($PR_URL)**
-
----
-
-$(cat /tmp/drift_report.md)
-EOF
-)
+            echo "## 🚨 Live Grafana Cloud Drift Detected & Configurations Reconciled" > /tmp/issue_body.md
+            echo "" >> /tmp/issue_body.md
+            echo "The live drift detection engine identified untracked resources in Grafana Cloud and has **automatically generated and pushed the matching declarative configuration** to branch \`$BRANCH\`." >> /tmp/issue_body.md
+            echo "" >> /tmp/issue_body.md
+            echo "### 🔗 1-Click Pull Request Link:" >> /tmp/issue_body.md
+            echo "👉 **[Click Here to Review & Open Pull Request]($PR_URL)**" >> /tmp/issue_body.md
+            echo "" >> /tmp/issue_body.md
+            echo "---" >> /tmp/issue_body.md
+            echo "" >> /tmp/issue_body.md
+            cat /tmp/drift_report.md >> /tmp/issue_body.md
             
             EXISTING_ISSUE=$(gh issue list --state open --search "Live Grafana Cloud Drift Detected" --json number -q '.[0].number' || echo "")
             if [ -n "$EXISTING_ISSUE" ]; then
-              echo "$ISSUE_BODY" | gh issue comment "$EXISTING_ISSUE" --body-file -
+              gh issue comment "$EXISTING_ISSUE" --body-file /tmp/issue_body.md
             else
-              echo "$ISSUE_BODY" | gh issue create --title "🚨 Live Grafana Cloud Drift Detected (1-Click PR Ready)" --body-file -
+              gh issue create --title "🚨 Live Grafana Cloud Drift Detected (1-Click PR Ready)" --body-file /tmp/issue_body.md
             fi
           fi
