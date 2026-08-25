@@ -16,11 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        run: |
-          git init .
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          git fetch --depth=1 origin "${{ github.sha }}"
-          git checkout FETCH_HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
 
       - name: Run Live Drift Detection Engine
         id: detect_drift
@@ -28,8 +32,7 @@ jobs:
           GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
           GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
-          pip install --quiet pyyaml
-          python3 - <<'PY'
+          python - <<'PY'
           import urllib.request, json, ssl, yaml, os, sys
 
           ctx = ssl._create_unverified_context()

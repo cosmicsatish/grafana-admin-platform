@@ -14,15 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        run: |
-          git init .
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          git fetch --depth=1 origin "${{ github.sha }}"
-          git checkout FETCH_HEAD
+        uses: actions/checkout@v4
 
       - name: Validate YAML Syntax
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           import pathlib, sys, yaml
           failures = []
           for p in pathlib.Path('.').rglob('*.yaml'):
@@ -54,6 +50,9 @@ jobs:
 
       - name: Run Conftest Policy Guardrails
         run: conftest test chart/values/*.yaml -p policy/
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
 
       - name: Lint and Template Chart
         run: |
