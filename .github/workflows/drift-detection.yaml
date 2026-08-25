@@ -10,9 +10,6 @@ permissions:
   contents: read
   issues: write
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-
 jobs:
   drift-check:
     name: Live Grafana Cloud Drift Detection
@@ -21,21 +18,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install PyYAML
-        run: pip install pyyaml
-
       - name: Run Live Drift Detection Engine
         id: detect_drift
         env:
           GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
           GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
-          python - <<'PY'
+          pip install --quiet pyyaml
+          python3 - <<'PY'
           import urllib.request, json, ssl, yaml, os, sys
 
           ctx = ssl._create_unverified_context()
@@ -62,7 +52,6 @@ jobs:
           # 1. Folders Comparison
           declared_folders = {f["uid"]: f.get("title", "") for f in load_yaml("chart/values/GrafanaFolder.yaml").get("folders", []) if "uid" in f}
           live_folders = {f["uid"]: f["title"] for f in get("/api/search?type=dash-folder")}
-          # Filter out system folder 'GrafanaCloud'
           untracked_folders = {uid: title for uid, title in live_folders.items() if uid not in declared_folders and title != "GrafanaCloud"}
           missing_folders = {uid: title for uid, title in declared_folders.items() if uid not in live_folders}
 
@@ -80,7 +69,6 @@ jobs:
 
           total_drifts = len(untracked_folders) + len(missing_folders) + len(untracked_teams) + len(missing_teams) + len(untracked_sas) + len(missing_sas)
 
-          # Markdown Summary
           summary = []
           summary.append("## 🔍 Live Grafana Cloud Drift Detection Report\n")
           summary.append(f"**Target Instance**: `{base_url}`\n")
@@ -120,7 +108,6 @@ jobs:
               with open(step_summary_path, "a") as f:
                   f.write(report_text + "\n")
 
-          # Write drift detected flag for downstream notification
           with open("drift_result.txt", "w") as f:
               f.write("true" if total_drifts > 0 else "false")
           PY
@@ -130,18 +117,9 @@ jobs:
 
       - name: Open Issue on Scheduled Drift Detection
         if: steps.detect_drift.outputs.drift_detected == 'true' && github.event_name == 'schedule'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const message = [
-              `🚨 Live drift detected between Git repository (\`${context.ref}\`) and Grafana Cloud instance.`,
-              '',
-              `Please inspect the [Drift Detection Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for the complete inventory diff.`
-            ].join('\n');
-
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 Live Grafana Cloud Drift Detected',
-              body: message
-            });
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "🚨 Live Grafana Cloud Drift Detected" \
+            --body "🚨 Live drift detected between Git repository (\`${{ github.ref }}\`) and Grafana Cloud instance. Please inspect the [Drift Detection Workflow Run](${{ github.server_url }}/${{{ github.repository }}}/actions/runs/${{{ github.run_id }}}) for details."

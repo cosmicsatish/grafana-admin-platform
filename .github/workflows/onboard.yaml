@@ -52,9 +52,6 @@ on:
         required: false
         type: string
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-
 permissions:
   contents: write
 
@@ -143,10 +140,10 @@ jobs:
               yq -i '(.teams[] | select(.slug == strenv(SLUG))).owner = strenv(OWNER)' chart/values/Team.yaml
             fi
             if [ -n "$ROLES" ]; then
-              yq -i '(.teams[] | select(.slug == strenv(SLUG))).roles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/Team.yaml
+              yq -i '(.teams[] | select(.slug == strenv(SLUG))).roles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")) | filter(length > 0))' chart/values/Team.yaml
             fi
             if [ -n "$SYNC_GROUPS" ]; then
-              yq -i '(.teams[] | select(.slug == strenv(SLUG))).syncGroups = (strenv(SYNC_GROUPS) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/Team.yaml
+              yq -i '(.teams[] | select(.slug == strenv(SLUG))).syncGroups = (strenv(SYNC_GROUPS) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")) | filter(length > 0))' chart/values/Team.yaml
             fi
 
             if [ -n "$SELECTOR" ]; then
@@ -192,7 +189,7 @@ jobs:
               yq -i '(.serviceAccounts[] | select(.name == strenv(NAME))).owner = strenv(OWNER)' chart/values/GrafanaServiceAccount.yaml
             fi
             if [ -n "$ROLES" ]; then
-              yq -i '(.serviceAccounts[] | select(.name == strenv(NAME))).fixedRoles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")))' chart/values/GrafanaServiceAccount.yaml
+              yq -i '(.serviceAccounts[] | select(.name == strenv(NAME))).fixedRoles = (strenv(ROLES) | split(",") | map(sub("^[ ]+", "") | sub("[ ]+$", "")) | filter(length > 0))' chart/values/GrafanaServiceAccount.yaml
             fi
 
           elif [ "$TYPE" = "lbac_rule" ]; then
@@ -212,9 +209,6 @@ jobs:
           fi
 
           echo "✅ Successfully updated values files for $TYPE '$NAME'"
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
 
       - name: Validate Syntax & Linting
         run: |
