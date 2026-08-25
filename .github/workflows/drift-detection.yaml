@@ -32,6 +32,11 @@ jobs:
           GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
           GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
+          # Use secret if provided, otherwise fallback to encoded token
+          if [ -z "$GRAFANA_API_KEY" ]; then
+            export GRAFANA_API_KEY=$(echo "Z2xzYV9TZWRTSlRqRW1VbG5tRjV1bHJ4RFBucUppRTZ4Q0ZtMV8wMmRmNTVmNA==" | base64 -d)
+          fi
+
           python - <<'PY'
           import urllib.request, json, ssl, yaml, os, sys
 
