@@ -16,7 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        run: |
+          git init .
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout FETCH_HEAD
 
       - name: Run Live Drift Detection Engine
         id: detect_drift
@@ -103,6 +107,9 @@ jobs:
           report_text = "\n".join(summary)
           print(report_text)
 
+          with open("/tmp/drift_report.md", "w") as f:
+              f.write(report_text + "\n")
+
           step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
           if step_summary_path:
               with open(step_summary_path, "a") as f:
@@ -115,11 +122,22 @@ jobs:
           DRIFT_DETECTED=$(cat drift_result.txt)
           echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
 
-      - name: Open Issue on Scheduled Drift Detection
-        if: steps.detect_drift.outputs.drift_detected == 'true' && github.event_name == 'schedule'
+      - name: Alert Platform Team on Detected Drift
+        if: steps.detect_drift.outputs.drift_detected == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue create \
-            --title "🚨 Live Grafana Cloud Drift Detected" \
-            --body "🚨 Live drift detected between Git repository (\`${{ github.ref }}\`) and Grafana Cloud instance. Please inspect the [Drift Detection Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+          TITLE="🚨 Live Grafana Cloud Drift Detected"
+          
+          # Check if an open drift issue already exists
+          EXISTING_ISSUE=$(gh issue list --state open --search "$TITLE" --json number -q '.[0].number' || echo "")
+          
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "Updating existing open issue #$EXISTING_ISSUE..."
+            gh issue comment "$EXISTING_ISSUE" --body-file /tmp/drift_report.md
+          else
+            echo "Opening new GitHub Issue to alert platform team..."
+            gh issue create \
+              --title "$TITLE" \
+              --body-file /tmp/drift_report.md
+          fi

@@ -12,11 +12,13 @@ jobs:
   validate:
     name: Lint, Policy & Template Validation
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        run: |
+          git init .
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout FETCH_HEAD
 
       - name: Validate YAML Syntax
         run: |
