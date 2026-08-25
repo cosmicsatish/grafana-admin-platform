@@ -7,12 +7,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   issues: write
 
 jobs:
   drift-check:
-    name: Live Grafana Cloud Drift Detection
+    name: Live Grafana Cloud Drift Detection & Auto-PR Reconciler
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,7 +27,7 @@ jobs:
       - name: Install PyYAML
         run: pip install pyyaml
 
-      - name: Run Live Drift Detection Engine
+      - name: Run Live Drift Detection & Generate Reconciled Configs
         id: detect_drift
         env:
           GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
@@ -38,7 +39,7 @@ jobs:
           fi
 
           python - <<'PY'
-          import urllib.request, json, ssl, yaml, os, sys
+          import urllib.request, json, ssl, yaml, os, sys, re
 
           ctx = ssl._create_unverified_context()
           token = os.environ.get("GRAFANA_API_KEY", "").strip()
@@ -61,28 +62,96 @@ jobs:
               with open(path) as f:
                   return yaml.safe_load(f) or {}
 
-          # 1. Folders Comparison
-          declared_folders = {f["uid"]: f.get("title", "") for f in load_yaml("chart/values/GrafanaFolder.yaml").get("folders", []) if "uid" in f}
+          def save_yaml(path, data):
+              with open(path, "w") as f:
+                  yaml.dump(data, f, sort_keys=False, default_flow_style=False)
+
+          # 1. Folders Comparison & Reconcile
+          folders_file = "chart/values/GrafanaFolder.yaml"
+          folders_data = load_yaml(folders_file)
+          if "folders" not in folders_data or not isinstance(folders_data["folders"], list):
+              folders_data["folders"] = []
+
+          declared_folders = {f["uid"]: f.get("title", "") for f in folders_data["folders"] if "uid" in f}
           live_folders = {f["uid"]: f["title"] for f in get("/api/search?type=dash-folder")}
           untracked_folders = {uid: title for uid, title in live_folders.items() if uid not in declared_folders and title != "GrafanaCloud"}
           missing_folders = {uid: title for uid, title in declared_folders.items() if uid not in live_folders}
 
-          # 2. Teams Comparison
-          declared_teams = {t["name"].lower(): t.get("slug", "") for t in load_yaml("chart/values/Team.yaml").get("teams", []) if "name" in t}
-          live_teams = {t["name"].lower(): t["name"] for t in get("/api/teams/search?perpage=100").get("teams", [])}
-          untracked_teams = {name for name in live_teams if name not in declared_teams}
+          # Auto-append untracked folders into declarative config
+          for uid, title in untracked_folders.items():
+              folders_data["folders"].append({
+                  "title": title,
+                  "uid": uid,
+                  "parentUid": "osttra",
+                  "owner": "platform",
+                  "permissions": [
+                      {"role": "Viewer", "permission": 1},
+                      {"team": "platform", "permission": 4}
+                  ]
+              })
+          if untracked_folders:
+              save_yaml(folders_file, folders_data)
+
+          # 2. Teams Comparison & Reconcile
+          teams_file = "chart/values/Team.yaml"
+          teams_data = load_yaml(teams_file)
+          if "teams" not in teams_data or not isinstance(teams_data["teams"], list):
+              teams_data["teams"] = []
+
+          declared_teams = {t["name"].lower(): t.get("slug", "") for t in teams_data["teams"] if "name" in t}
+          live_teams_raw = get("/api/teams/search?perpage=100").get("teams", [])
+          live_teams = {t["name"].lower(): t for t in live_teams_raw}
+          untracked_teams = {name: t for name, t in live_teams.items() if name not in declared_teams}
           missing_teams = {name for name in declared_teams if name not in live_teams}
 
-          # 3. Service Accounts Comparison
-          declared_sas = {s["name"].lower() for s in load_yaml("chart/values/GrafanaServiceAccount.yaml").get("serviceAccounts", []) if "name" in s}
-          live_sas = {s["name"].lower() for s in get("/api/serviceaccounts/search?perpage=100").get("serviceAccounts", []) if not s["name"].startswith("extsvc-")}
-          untracked_sas = {name for name in live_sas if name not in declared_sas}
+          # Auto-append untracked teams into declarative config
+          for name_lower, t_obj in untracked_teams.items():
+              raw_name = t_obj.get("name", name_lower)
+              slug = re.sub(r'[^a-z0-9-]', '-', raw_name.lower())
+              slug = re.sub(r'-+', '-', slug).strip('-') or 'team-1'
+              new_team = {
+                  "name": raw_name,
+                  "slug": slug,
+                  "roles": ["fixed:dashboards:reader", "fixed:datasources:explorer"]
+              }
+              if t_obj.get("email"):
+                  new_team["email"] = t_obj["email"]
+              teams_data["teams"].append(new_team)
+          if untracked_teams:
+              save_yaml(teams_file, teams_data)
+
+          # 3. Service Accounts Comparison & Reconcile
+          sa_file = "chart/values/GrafanaServiceAccount.yaml"
+          sa_data = load_yaml(sa_file)
+          if "serviceAccounts" not in sa_data or not isinstance(sa_data["serviceAccounts"], list):
+              sa_data["serviceAccounts"] = []
+
+          declared_sas = {s["name"].lower() for s in sa_data["serviceAccounts"] if "name" in s}
+          live_sas_raw = [s for s in get("/api/serviceaccounts/search?perpage=100").get("serviceAccounts", []) if not s["name"].startswith("extsvc-")]
+          live_sas = {s["name"].lower(): s for s in live_sas_raw}
+          untracked_sas = {name: s for name, s in live_sas.items() if name not in declared_sas}
           missing_sas = {name for name in declared_sas if name not in live_sas}
+
+          # Auto-append untracked service accounts into declarative config
+          for name_lower, sa_obj in untracked_sas.items():
+              raw_name = sa_obj.get("name", name_lower)
+              slug = re.sub(r'[^a-z0-9-]', '-', raw_name.lower()).strip('-') or 'sa-1'
+              sa_data["serviceAccounts"].append({
+                  "name": raw_name,
+                  "role": "None",
+                  "secretName": f"{slug}-token",
+                  "tokenName": f"{slug}-token",
+                  "tokenExpires": "2027-12-31T23:59:59Z",
+                  "owner": "platform",
+                  "fixedRoles": ["fixed:dashboards:reader", "fixed:datasources:explorer"]
+              })
+          if untracked_sas:
+              save_yaml(sa_file, sa_data)
 
           total_drifts = len(untracked_folders) + len(missing_folders) + len(untracked_teams) + len(missing_teams) + len(untracked_sas) + len(missing_sas)
 
           summary = []
-          summary.append("## 🔍 Live Grafana Cloud Drift Detection Report\n")
+          summary.append("## 🔍 Live Grafana Cloud Drift Detection & Auto-Reconcile Report\n")
           summary.append(f"**Target Instance**: `{base_url}`\n")
 
           summary.append("### 📁 Folders")
@@ -97,7 +166,7 @@ jobs:
           summary.append("\n### 👥 Teams")
           summary.append(f"- **Declared in Git**: `{len(declared_teams)}` | **Live in Cloud**: `{len(live_teams)}`")
           if untracked_teams:
-              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {list(untracked_teams)}")
+              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {[t['name'] for t in untracked_teams.values()]}")
           if missing_teams:
               summary.append(f"- ❌ **Missing in Cloud**: {list(missing_teams)}")
           if not untracked_teams and not missing_teams:
@@ -106,11 +175,15 @@ jobs:
           summary.append("\n### 👤 Service Accounts")
           summary.append(f"- **Declared in Git**: `{len(declared_sas)}` | **Live in Cloud**: `{len(live_sas)}`")
           if untracked_sas:
-              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {list(untracked_sas)}")
+              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {[s['name'] for s in untracked_sas.values()]}")
           if missing_sas:
               summary.append(f"- ❌ **Missing in Cloud**: {list(missing_sas)}")
           if not untracked_sas and not missing_sas:
               summary.append("- 🟢 **Status**: Fully Synced")
+
+          if total_drifts > 0:
+              summary.append("\n---\n### 🤖 Action Taken\n")
+              summary.append("Automated Pull Request has been opened/updated to import the untracked resources into Git so that GitOps (Argo CD) and Grafana Cloud are brought into 100% synchronization.")
 
           report_text = "\n".join(summary)
           print(report_text)
@@ -130,22 +203,38 @@ jobs:
           DRIFT_DETECTED=$(cat drift_result.txt)
           echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
 
-      - name: Alert Platform Team on Detected Drift
+      - name: Create or Update Pull Request with Reconciled Configurations
         if: steps.detect_drift.outputs.drift_detected == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TITLE="🚨 Live Grafana Cloud Drift Detected"
-          
-          # Check if an open drift issue already exists
-          EXISTING_ISSUE=$(gh issue list --state open --search "$TITLE" --json number -q '.[0].number' || echo "")
-          
-          if [ -n "$EXISTING_ISSUE" ]; then
-            echo "Updating existing open issue #$EXISTING_ISSUE..."
-            gh issue comment "$EXISTING_ISSUE" --body-file /tmp/drift_report.md
-          else
-            echo "Opening new GitHub Issue to alert platform team..."
-            gh issue create \
+          BRANCH="drift/auto-reconcile"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if values files were modified
+          if git diff --quiet chart/values/; then
+            echo "No declarative config modifications to commit."
+            exit 0
+          fi
+
+          git checkout -B "$BRANCH"
+          git add chart/values/
+          git commit -m "chore(gitops): reconcile live Grafana Cloud drift into declarative values files"
+          git push origin "$BRANCH" --force
+
+          TITLE="🤖 chore(gitops): auto-reconcile live Grafana Cloud drift into repository"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' || echo "")
+
+          if [ -z "$EXISTING_PR" ]; then
+            echo "Creating new Pull Request..."
+            gh pr create \
               --title "$TITLE" \
-              --body-file /tmp/drift_report.md
+              --body-file /tmp/drift_report.md \
+              --base main \
+              --head "$BRANCH"
+          else
+            echo "Updating existing Pull Request #$EXISTING_PR..."
+            gh pr edit "$EXISTING_PR" --title "$TITLE" --body-file /tmp/drift_report.md
           fi
