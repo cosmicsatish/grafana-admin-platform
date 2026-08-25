@@ -14,9 +14,11 @@ jobs:
   drift-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: azure/setup-helm@v5
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
 
       - name: Validate Chart Rendering & Integrity
         id: helm_check
@@ -24,6 +26,7 @@ jobs:
           helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml
           helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml > /tmp/rendered.yaml
           test -s /tmp/rendered.yaml
+          echo "✅ Helm chart rendered $(wc -l < /tmp/rendered.yaml) lines of manifests successfully."
 
       - name: Install Conftest
         run: |
@@ -31,11 +34,13 @@ jobs:
 
       - name: Policy Guardrails Check
         id: policy_check
-        run: conftest test chart/values/*.yaml -p policy/
+        run: |
+          conftest test chart/values/*.yaml -p policy/
+          echo "✅ All OPA policy guardrails passed."
 
       - name: Notify on Drift or Policy Violation
         if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@v9
+        uses: actions/github-script@v7
         with:
           script: |
             const message = [
