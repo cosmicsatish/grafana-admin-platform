@@ -8,13 +8,16 @@ on:
 permissions:
   contents: read
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   validate:
     name: Lint, Policy & Template Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Validate YAML Syntax
         run: |
@@ -52,7 +55,7 @@ jobs:
         run: conftest test chart/values/*.yaml -p policy/
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@v4
 
       - name: Lint and Template Chart
         run: |

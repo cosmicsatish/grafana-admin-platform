@@ -1,4 +1,4 @@
-name: Nightly Drift & Integrity Detection
+name: Nightly Live Drift & Integrity Detection
 
 on:
   schedule:
@@ -10,48 +10,138 @@ permissions:
   contents: read
   issues: write
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   drift-check:
+    name: Live Grafana Cloud Drift Detection
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Validate Chart Rendering & Integrity
-        id: helm_check
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Run Live Drift Detection Engine
+        id: detect_drift
+        env:
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+          GRAFANA_URL: "https://cosmicsatish.grafana.net"
         run: |
-          helm lint chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml
-          helm template grafana-admin chart/ -f chart/values/Team.yaml -f chart/values/GrafanaFolder.yaml -f chart/values/TeamLBACRule.yaml -f chart/values/GrafanaServiceAccount.yaml -f chart/values/ResourcePermission.yaml -f chart/values/GrafanaDatasource.yaml > /tmp/rendered.yaml
-          test -s /tmp/rendered.yaml
-          echo "✅ Helm chart rendered $(wc -l < /tmp/rendered.yaml) lines of manifests successfully."
+          python - <<'PY'
+          import urllib.request, json, ssl, yaml, os, sys
 
-      - name: Install Conftest
-        run: |
-          curl -sL https://github.com/open-policy-agent/conftest/releases/download/v0.59.0/conftest_0.59.0_Linux_x86_64.tar.gz | sudo tar xz -C /usr/local/bin conftest
+          ctx = ssl._create_unverified_context()
+          token = os.environ.get("GRAFANA_API_KEY", "").strip()
+          base_url = os.environ.get("GRAFANA_URL", "https://cosmicsatish.grafana.net").strip()
 
-      - name: Policy Guardrails Check
-        id: policy_check
-        run: |
-          conftest test chart/values/*.yaml -p policy/
-          echo "✅ All OPA policy guardrails passed."
+          if not token:
+              print("❌ Error: GRAFANA_API_KEY is not configured.", file=sys.stderr)
+              sys.exit(1)
 
-      - name: Notify on Drift or Policy Violation
-        if: failure() && github.event_name == 'schedule'
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+
+          def get(path):
+              req = urllib.request.Request(f"{base_url}{path}", headers=headers)
+              with urllib.request.urlopen(req, context=ctx) as r:
+                  return json.loads(r.read())
+
+          def load_yaml(path):
+              if not os.path.exists(path):
+                  return {}
+              with open(path) as f:
+                  return yaml.safe_load(f) or {}
+
+          # 1. Folders Comparison
+          declared_folders = {f["uid"]: f.get("title", "") for f in load_yaml("chart/values/GrafanaFolder.yaml").get("folders", []) if "uid" in f}
+          live_folders = {f["uid"]: f["title"] for f in get("/api/search?type=dash-folder")}
+          # Filter out system folder 'GrafanaCloud'
+          untracked_folders = {uid: title for uid, title in live_folders.items() if uid not in declared_folders and title != "GrafanaCloud"}
+          missing_folders = {uid: title for uid, title in declared_folders.items() if uid not in live_folders}
+
+          # 2. Teams Comparison
+          declared_teams = {t["name"].lower(): t.get("slug", "") for t in load_yaml("chart/values/Team.yaml").get("teams", []) if "name" in t}
+          live_teams = {t["name"].lower(): t["name"] for t in get("/api/teams/search?perpage=100").get("teams", [])}
+          untracked_teams = {name for name in live_teams if name not in declared_teams}
+          missing_teams = {name for name in declared_teams if name not in live_teams}
+
+          # 3. Service Accounts Comparison
+          declared_sas = {s["name"].lower() for s in load_yaml("chart/values/GrafanaServiceAccount.yaml").get("serviceAccounts", []) if "name" in s}
+          live_sas = {s["name"].lower() for s in get("/api/serviceaccounts/search?perpage=100").get("serviceAccounts", []) if not s["name"].startswith("extsvc-")}
+          untracked_sas = {name for name in live_sas if name not in declared_sas}
+          missing_sas = {name for name in declared_sas if name not in live_sas}
+
+          total_drifts = len(untracked_folders) + len(missing_folders) + len(untracked_teams) + len(missing_teams) + len(untracked_sas) + len(missing_sas)
+
+          # Markdown Summary
+          summary = []
+          summary.append("## 🔍 Live Grafana Cloud Drift Detection Report\n")
+          summary.append(f"**Target Instance**: `{base_url}`\n")
+
+          summary.append("### 📁 Folders")
+          summary.append(f"- **Declared in Git**: `{len(declared_folders)}` | **Live in Cloud**: `{len(live_folders)}`")
+          if untracked_folders:
+              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {list(untracked_folders.values())}")
+          if missing_folders:
+              summary.append(f"- ❌ **Missing in Cloud**: {list(missing_folders.values())}")
+          if not untracked_folders and not missing_folders:
+              summary.append("- 🟢 **Status**: Fully Synced")
+
+          summary.append("\n### 👥 Teams")
+          summary.append(f"- **Declared in Git**: `{len(declared_teams)}` | **Live in Cloud**: `{len(live_teams)}`")
+          if untracked_teams:
+              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {list(untracked_teams)}")
+          if missing_teams:
+              summary.append(f"- ❌ **Missing in Cloud**: {list(missing_teams)}")
+          if not untracked_teams and not missing_teams:
+              summary.append("- 🟢 **Status**: Fully Synced")
+
+          summary.append("\n### 👤 Service Accounts")
+          summary.append(f"- **Declared in Git**: `{len(declared_sas)}` | **Live in Cloud**: `{len(live_sas)}`")
+          if untracked_sas:
+              summary.append(f"- ⚠️ **Untracked (Created in UI/Out-of-band)**: {list(untracked_sas)}")
+          if missing_sas:
+              summary.append(f"- ❌ **Missing in Cloud**: {list(missing_sas)}")
+          if not untracked_sas and not missing_sas:
+              summary.append("- 🟢 **Status**: Fully Synced")
+
+          report_text = "\n".join(summary)
+          print(report_text)
+
+          step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary_path:
+              with open(step_summary_path, "a") as f:
+                  f.write(report_text + "\n")
+
+          # Write drift detected flag for downstream notification
+          with open("drift_result.txt", "w") as f:
+              f.write("true" if total_drifts > 0 else "false")
+          PY
+
+          DRIFT_DETECTED=$(cat drift_result.txt)
+          echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
+
+      - name: Open Issue on Scheduled Drift Detection
+        if: steps.detect_drift.outputs.drift_detected == 'true' && github.event_name == 'schedule'
         uses: actions/github-script@v7
         with:
           script: |
             const message = [
-              `Nightly validation failed on branch **${context.ref}** at commit ${context.sha}.`,
+              `🚨 Live drift detected between Git repository (\`${context.ref}\`) and Grafana Cloud instance.`,
               '',
-              `Please inspect the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`
+              `Please inspect the [Drift Detection Workflow Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for the complete inventory diff.`
             ].join('\n');
 
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🚨 Nightly Drift / Policy Integrity Failure Detected',
+              title: '🚨 Live Grafana Cloud Drift Detected',
               body: message
             });
